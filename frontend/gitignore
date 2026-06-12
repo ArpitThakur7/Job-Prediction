@@ -1,0 +1,38 @@
+# Secrets
+.env
+*.env
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.Python
+
+# Raw datasets (too large)
+data/raw/
+data/processed/
+data/sample/
+
+# ML models
+ml/model/*.pkl
+ml/model/*.joblib
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Keys
+*.key
+secrets/
