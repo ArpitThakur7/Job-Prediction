@@ -1,0 +1,5 @@
+1:"$Sreact.fragment"
+2:I[39756,["/Job-Prediction/_next/static/chunks/2wobx8ugcbqvu.js","/Job-Prediction/_next/static/chunks/3u5rc7lvzur7p.js","/Job-Prediction/_next/static/chunks/14mrh2-p_w84d.js"],"default"]
+3:I[37457,["/Job-Prediction/_next/static/chunks/2wobx8ugcbqvu.js","/Job-Prediction/_next/static/chunks/3u5rc7lvzur7p.js","/Job-Prediction/_next/static/chunks/14mrh2-p_w84d.js"],"default"]
+4:[]
+0:{"rsc":["$","$1","c",{"children":[null,["$","$L2",null,{"parallelRouterKey":"children","template":["$","$L3",null,{}]}]]}],"isPartial":false,"staleTime":300,"varyParams":"$W4","buildId":"XRaIHg_sXPIV4jM2ogd65"}
