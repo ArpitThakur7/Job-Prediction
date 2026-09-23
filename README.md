@@ -14,14 +14,20 @@
 [![MongoDB](https://img.shields.io/badge/MongoDB-7.0_MERN-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://mongodb.com)
 [![Redis](https://img.shields.io/badge/Redis-7.0_Cache-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io)
 [![Pinecone](https://img.shields.io/badge/Pinecone-Vector_DB-000000?style=for-the-badge)](https://pinecone.io)
-[![Three.js](https://img.shields.io/badge/Three.js-3D_WebGL_UI-black?style=for-the-badge&logo=threedotjs&logoColor=white)](https://threejs.org)
+[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-GitHub_Pages-2ea44f?style=for-the-badge&logo=github&logoColor=white)](https://arpitthakur7.github.io/Job-Prediction/)
+[![Deploy with Vercel](https://img.shields.io/badge/Deploy_to-Vercel-black?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FArpitThakur7%2FJob-Prediction&root-directory=frontend)
+[![Deploy to Netlify](https://img.shields.io/badge/Deploy_to-Netlify-00C7B7?style=for-the-badge&logo=netlify&logoColor=white)](https://app.netlify.com/start/deploy?repository=https://github.com/ArpitThakur7/Job-Prediction)
 
 <p align="center">
   <strong>An enterprise-grade, distributed machine learning and event-driven candidate-to-job matching platform.</strong><br/>
   Featuring 3D WebGL visualizations, XGBoost classification, RAG AI career coach with multi-LLM fallbacks, Apache Kafka event streaming, Apache Spark distributed batch scoring, and high-performance .NET Core scoring kernels.
 </p>
 
-[Key Features](#-key-features) • [System Architecture](#️-system-architecture) • [UI & Feature Gallery](#-feature-gallery--screenshots) • [Tech Stack](#-technology-stack) • [Quickstart Guide](#-quickstart-guide) • [ML Performance](#-machine-learning--benchmarks) • [Project Structure](#-project-structure)
+<p align="center">
+  🚀 <strong>Live Demo:</strong> <a href="https://arpitthakur7.github.io/Job-Prediction/"><strong>https://arpitthakur7.github.io/Job-Prediction/</strong></a>
+</p>
+
+[🌐 Live Demo](https://arpitthakur7.github.io/Job-Prediction/) • [Key Features](#-key-features) • [System Architecture](#️-system-architecture) • [UI & Feature Gallery](#-feature-gallery--screenshots) • [Tech Stack](#-technology-stack) • [Quickstart Guide](#-quickstart-guide) • [ML Performance](#-machine-learning--benchmarks) • [Project Structure](#-project-structure)
 
 </div>
 
