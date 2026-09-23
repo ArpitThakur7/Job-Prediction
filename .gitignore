@@ -14,10 +14,28 @@ __pycache__/
 *.pyo
 .Python
 
-# Raw datasets (too large)
+# Raw datasets & Database (too large)
 data/raw/
 data/processed/
 data/sample/
+data/mongo_db/
+
+# Frontend builds & dependencies
+frontend/.next/
+frontend/out/
+node_modules/
+frontend/node_modules/
+
+# .NET artifacts
+dotnet/**/bin/
+dotnet/**/obj/
+*.user
+*.suo
+
+# Testing & Coverage cache
+.pytest_cache/
+.coverage
+htmlcov/
 
 # ML models
 ml/model/*.pkl

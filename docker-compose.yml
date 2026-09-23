@@ -1,6 +1,6 @@
 services:
 
-  # ── FastAPI — model inference ────────────────────────────────────────────────
+  # ── FastAPI — core backend & inference API ─────────────────────────────────────
   api:
     build:
       context: .
@@ -9,10 +9,18 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      # Mount model artefacts so you can retrain without rebuilding the image
       - ./ml/model:/app/ml/model:ro
     environment:
       - PYTHONUNBUFFERED=1
+      - MONGO_URI=mongodb://mongo:27017
+      - REDIS_HOST=redis
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - SPARK_MASTER_URL=spark://spark-master:7077
+    depends_on:
+      - mongo
+      - redis
+      - kafka
+      - spark-master
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
@@ -21,19 +29,101 @@ services:
       start_period: 15s
     restart: unless-stopped
 
-  # ── Streamlit — recruiter dashboard ─────────────────────────────────────────
-  dashboard:
+  # ── Next.js 3D Web UI ──────────────────────────────────────────────────────────
+  frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.dashboard
-    container_name: job_matcher_dashboard
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: job_matcher_frontend
     ports:
-      - "8501:8501"
+      - "3000:3000"
     environment:
-      - PYTHONUNBUFFERED=1
-      # Point dashboard at the API service by container name
-      - API_BASE=http://api:8000
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
     depends_on:
       api:
         condition: service_healthy
     restart: unless-stopped
+
+  # ── Apache Kafka & Zookeeper — Event Streaming Bus ─────────────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: job_matcher_zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    restart: unless-stopped
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: job_matcher_kafka
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    restart: unless-stopped
+
+  # ── Apache Spark — Distributed Data Processing Cluster ──────────────────────
+  spark-master:
+    image: bitnami/spark:3.5.0
+    container_name: job_matcher_spark_master
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    ports:
+      - "7077:7077"
+      - "8080:8080"
+    restart: unless-stopped
+
+  spark-worker:
+    image: bitnami/spark:3.5.0
+    container_name: job_matcher_spark_worker
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=2
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    depends_on:
+      - spark-master
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+  # ── MongoDB — primary datastore ──────────────────────────────────────────────
+  mongo:
+    image: mongo:7
+    container_name: job_matcher_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+  # ── Redis — cache + chat memory ──────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: job_matcher_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+  redis_data:

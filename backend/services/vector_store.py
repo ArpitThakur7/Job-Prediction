@@ -10,7 +10,7 @@ from backend.config import settings
 _pinecone_client: Pinecone | None = None
 
 
-def initialize_pinecone() -> Pinecone:
+def initialize_pinecone(api_key: Optional[str] = None) -> Pinecone:
     """
     Initialize Pinecone client and ensure index exists.
 
@@ -18,15 +18,22 @@ def initialize_pinecone() -> Pinecone:
         Pinecone client instance.
     """
     global _pinecone_client
+    active_key = api_key or settings.PINECONE_API_KEY
+
+    if api_key:
+        return Pinecone(api_key=api_key)
+
     if _pinecone_client is not None:
         return _pinecone_client
 
-    pc = Pinecone(api_key=settings.PINECONE_API_KEY)
+    if not active_key:
+        raise ValueError("Pinecone API key is missing")
+
+    pc = Pinecone(api_key=active_key)
 
     index_name = settings.PINECONE_INDEX
     existing = [i["name"] for i in pc.list_indexes()]
     if index_name not in existing:
-        # Create index with the standard dimensions for all-MiniLM-L6-v2 embeddings.
         pc.create_index(
             name=index_name,
             dimension=384,
@@ -37,7 +44,6 @@ def initialize_pinecone() -> Pinecone:
         )
 
     _pinecone_client = pc
-    # Wait until ready
     try:
         _ = pc.Index(index_name).describe_index_stats()
     except Exception:
@@ -46,15 +52,15 @@ def initialize_pinecone() -> Pinecone:
     return _pinecone_client
 
 
-def _index() -> Any:
+def _index(api_key: Optional[str] = None) -> Any:
     """
     Get Pinecone index handle.
     """
-    pc = initialize_pinecone()
+    pc = initialize_pinecone(api_key=api_key)
     return pc.Index(settings.PINECONE_INDEX)
 
 
-def upsert_vector(id: str, vector: List[float], metadata: Dict[str, Any]) -> None:
+def upsert_vector(id: str, vector: List[float], metadata: Dict[str, Any], api_key: Optional[str] = None) -> None:
     """
     Upsert a single vector to Pinecone.
 
@@ -62,11 +68,11 @@ def upsert_vector(id: str, vector: List[float], metadata: Dict[str, Any]) -> Non
         id: Vector ID.
         vector: Embedding vector.
         metadata: Metadata dict.
+        api_key: Optional API key.
     """
     try:
-        _index().upsert(vectors=[{"id": id, "values": vector, "metadata": metadata}])
+        _index(api_key=api_key).upsert(vectors=[{"id": id, "values": vector, "metadata": metadata}])
     except Exception:
-        # Vector store failures should not crash API calls that already performed core work.
         return
 
 
@@ -94,6 +100,7 @@ def query_similar(
     vector: List[float],
     top_k: int = 10,
     filter: Optional[Dict[str, Any]] = None,
+    api_key: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Query Pinecone for similar vectors.
@@ -107,7 +114,7 @@ def query_similar(
         List of matches with keys: id, score, metadata.
     """
     try:
-        idx = _index()
+        idx = _index(api_key=api_key)
         res = idx.query(
             vector=vector,
             top_k=top_k,

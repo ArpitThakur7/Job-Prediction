@@ -1,0 +1,34 @@
+[
+  {
+    "Model": "Logistic Regression",
+    "Accuracy": 0.9848,
+    "Precision": 0.9724,
+    "Recall": 0.9977,
+    "F1-Score": 0.9849,
+    "AUC-ROC": 0.9962
+  },
+  {
+    "Model": "Random Forest",
+    "Accuracy": 0.992,
+    "Precision": 0.9871,
+    "Recall": 0.997,
+    "F1-Score": 0.992,
+    "AUC-ROC": 0.9997
+  },
+  {
+    "Model": "HistGradientBoosting",
+    "Accuracy": 0.9922,
+    "Precision": 0.9888,
+    "Recall": 0.9956,
+    "F1-Score": 0.9922,
+    "AUC-ROC": 0.9998
+  },
+  {
+    "Model": "XGBoost (Champion)",
+    "Accuracy": 0.9922,
+    "Precision": 0.9894,
+    "Recall": 0.995,
+    "F1-Score": 0.9922,
+    "AUC-ROC": 0.9997
+  }
+]

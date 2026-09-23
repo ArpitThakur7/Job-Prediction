@@ -16,8 +16,11 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 
 # Copy project files
-COPY api/        ./api/
-COPY ml/model/   ./ml/model/
+COPY backend/   ./backend/
+COPY ml/        ./ml/
+COPY api/       ./api/
+COPY scripts/   ./scripts/
+COPY data/      ./data/
 
 # Non-root user for security
 RUN adduser --disabled-password --gecos "" appuser
@@ -26,7 +29,7 @@ USER appuser
 EXPOSE 8000
 
 # Graceful shutdown with --timeout-graceful-shutdown
-CMD ["uvicorn", "api.main:app", \
+CMD ["uvicorn", "backend.main:app", \
      "--host", "0.0.0.0", \
      "--port", "8000", \
      "--workers", "2", \

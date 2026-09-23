@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 
 import spacy
 
-from backend.services.pdf_parser import parse_resume_file
+from backend.services.pdf_parser import parse_resume_file, extract_experience_years
 
 # 80 skills list (must match the one used in pdf_parser for consistent skill extraction)
 SKILLS: List[str] = [
@@ -84,6 +84,15 @@ SKILLS: List[str] = [
     "Ruby",
     "PHP",
     "R",
+    ".NET",
+    ".NET Core",
+    "ASP.NET",
+    "ASP.NET Core",
+    "Entity Framework",
+    "Blazor",
+    "MERN",
+    "MERN Stack",
+    "Next.js",
 ]
 
 
@@ -102,6 +111,7 @@ _PHONE_RE = re.compile(r"(\+?\d{1,3}[\s-]?)?(\(?\d{3}\)?[\s-]?)\d{3}[\s-]?\d{4}"
 def extract_skills_from_text(text: str) -> List[str]:
     """
     Extract skills from text by matching against a predefined skill list.
+    Supports special aliases like .NET, dotnet, and MERN.
 
     Args:
         text: Resume text.
@@ -111,25 +121,34 @@ def extract_skills_from_text(text: str) -> List[str]:
     """
     lower = text.lower()
     matched: List[str] = []
+    
+    # Pre-check for special tokens / aliases
+    has_dotnet = bool(re.search(r"(\.net|dotnet|\basp\.net)\b", lower))
+    has_mern = bool(re.search(r"\bmern(\s+stack)?\b", lower))
+
     for skill in SKILLS:
-        if skill.lower() in lower:
+        s_lower = skill.lower()
+        if skill == ".NET":
+            if has_dotnet and ".NET" not in matched:
+                matched.append(".NET")
+            continue
+        if skill in ("MERN", "MERN Stack"):
+            if has_mern and skill not in matched:
+                matched.append(skill)
+            continue
+        if s_lower in lower:
             matched.append(skill)
     return matched
 
 
 def _extract_experience_years(text: str) -> float:
     """
-    Extract experience years from text using regex.
+    Extract experience years from text while excluding age and DOB numbers.
 
     Returns:
         Parsed experience years, or 0.0.
     """
-    exp_match = re.search(
-        r"(\b\d+(\.\d+)?\b)\s*(?:years?|yrs?)\s*(?:of\s*)?(?:experience)?",
-        text,
-        flags=re.IGNORECASE,
-    )
-    return float(exp_match.group(1)) if exp_match else 0.0
+    return extract_experience_years(text)
 
 
 def _extract_education_level(text: str) -> str:

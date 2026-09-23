@@ -105,6 +105,31 @@ def load_and_merge(features_path: Path, labels_path: Path) -> pd.DataFrame:
     logger.info("Loading features from %s", features_path)
     features_df = _read_csv_or_raise(features_path)
 
+    # Append MongoDB feedback data for active learning
+    try:
+        from pymongo import MongoClient
+        import os
+        mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
+        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)
+        db = client["job_prediction"]
+        feedback_col = db["feedback_data"]
+        feedback_count = feedback_col.count_documents({})
+        if feedback_count > 0:
+            logger.info("Found %d user feedback interactions in MongoDB. Merging for active learning...", feedback_count)
+            feedback_data = list(feedback_col.find({}, {"_id": 0, "created_at": 0}))
+            feedback_df = pd.DataFrame(feedback_data)
+            
+            # Align columns
+            for col in features_df.columns:
+                if col not in feedback_df.columns:
+                    feedback_df[col] = 0.0
+            feedback_df = feedback_df[features_df.columns]
+            
+            features_df = pd.concat([features_df, feedback_df], ignore_index=True)
+            logger.info("New merged features shape: %s", features_df.shape)
+    except Exception as e:
+        logger.warning("Could not merge user feedback from MongoDB: %s", e)
+
     logger.info("Loading labels from %s", labels_path)
     labels_df = _read_csv_or_raise(labels_path)
 
@@ -187,8 +212,6 @@ def get_feature_columns(merged_df: pd.DataFrame) -> List[str]:
     exclude = {
         "resume_id", "job_id", "match_id",
         "is_match", "match_score",
-        "title_relevance",
-        "category_match",
         "description_length",
         "skills_count_job",
     }
@@ -423,12 +446,30 @@ def train_and_evaluate(config: TrainConfig) -> None:
         shuffle=True,
         random_state=config.random_state,
     )
-    cv_scores = cross_val_score(
-        model, X_train, y_train,
-        cv=cv,
-        scoring="roc_auc",
-        n_jobs=-1,
-    )
+    cv_scores = []
+    for fold, (train_idx, val_idx) in enumerate(cv.split(X_train, y_train)):
+        X_fold_train, X_fold_val = X_train[train_idx], X_train[val_idx]
+        y_fold_train, y_fold_val = y_train[train_idx], y_train[val_idx]
+        
+        fold_model = xgb.XGBClassifier(
+            n_estimators=config.n_estimators,
+            max_depth=config.max_depth,
+            learning_rate=config.learning_rate,
+            subsample=config.subsample,
+            colsample_bytree=config.colsample_bytree,
+            eval_metric=config.eval_metric,
+            random_state=config.random_state,
+            scale_pos_weight=scale_pos_weight,
+            n_jobs=-1,
+            verbosity=0,
+        )
+        fold_model.fit(X_fold_train, y_fold_train)
+        y_fold_proba = fold_model.predict_proba(X_fold_val)[:, 1]
+        fold_auc = roc_auc_score(y_fold_val, y_fold_proba)
+        cv_scores.append(fold_auc)
+        logger.info("  Fold %d ROC-AUC: %.4f", fold + 1, fold_auc)
+
+    cv_scores = np.array(cv_scores)
     logger.info(
         "CV ROC-AUC — mean: %.6f | std: %.6f | scores: %s",
         float(cv_scores.mean()),

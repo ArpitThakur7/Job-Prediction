@@ -1,67 +1,36 @@
-# JOB-AI-PLATFORM
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-AI-powered job matching platform using FastAPI, Streamlit, MongoDB, Pinecone, Groq LLM, and XGBoost.
+## Getting Started
 
-## Tech Stack
-- **Backend:** FastAPI, PyMongo, Redis
-- **Frontend:** Streamlit
-- **ML:** XGBoost, scikit-learn
-- **AI:** Groq LLaMA3, LangChain, HuggingFace Embeddings
-- **Vector DB:** Pinecone
-- **Database:** MongoDB
-- **NLP:** spaCy
+First, run the development server:
 
-## Setup
-
-### 1. Clone & Install
 ```bash
-git clone https://github.com/YOUR_USERNAME/JOB-AI-PLATFORM.git
-cd JOB-AI-PLATFORM
-pip install -r requirements.txt
-python -m spacy download en_core_web_sm
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-### 2. Configure Environment
-```bash
-cp .env.example .env
-# Fill in your API keys in .env
-```
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-### 3. Start Database Services
-```bash
-docker-compose up -d
-```
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-### 4. Prepare Dataset
-```bash
-python scripts/prepare_dataset.py
-```
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-### 5. Train ML Model
-```bash
-python ml/train.py
-```
+## Learn More
 
-### 6. Run Backend
-```bash
-uvicorn backend.main:app --reload
-```
+To learn more about Next.js, take a look at the following resources:
 
-### 7. Run Frontend
-```bash
-streamlit run frontend/app.py
-```
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-## API Docs
-Visit: http://localhost:8000/docs
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Project Structure
-```
-JOB_PREDICTION/
-├── backend/          FastAPI backend
-├── frontend/         Streamlit UI
-├── ml/               XGBoost ML pipeline
-├── data/             Datasets
-├── scripts/          Utility scripts
-└── docker-compose.yml
-```
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

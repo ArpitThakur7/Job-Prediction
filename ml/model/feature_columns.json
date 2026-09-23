@@ -4,5 +4,8 @@
   "experience_gap",
   "education_score",
   "location_match",
+  "category_match",
+  "title_relevance",
+  "semantic_similarity",
   "skills_count_resume"
 ]

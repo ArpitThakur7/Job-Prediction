@@ -163,6 +163,17 @@ def load_and_prepare_eval_dataframe(features_path: Path, labels_path: Path) -> p
     if missing_labels:
         raise ValueError(f"match_labels.csv missing columns: {sorted(missing_labels)}")
 
+    if "is_match" in features_df.columns:
+        features_df["is_match"] = features_df["is_match"].astype(int)
+        return features_df
+
+    label_only_cols = [
+        c for c in labels_df.columns
+        if c not in ("resume_id", "job_id") and c in features_df.columns
+    ]
+    if label_only_cols:
+        labels_df = labels_df.drop(columns=label_only_cols)
+
     merged = pd.merge(features_df, labels_df, on=["resume_id", "job_id"], how="inner")
     if merged.empty:
         raise ValueError("Merged dataset is empty. Check resume_id/job_id keys consistency.")

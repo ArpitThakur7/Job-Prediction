@@ -1,0 +1,57 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+
+# Environment
+.env
+*.env
+
+# Data (too large for Docker context)
+data/raw/
+data/processed/
+data/sample/
+
+# ML models (loaded at runtime via volume mount)
+ml/model/*.pkl
+ml/model/*.joblib
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Keys and secrets
+*.key
+secrets/
+
+# Documentation and config
+README.md
+CONTRIBUTING.md
+CHANGELOG.md
+LICENSE
+Makefile
+pyproject.toml
+.pre-commit-config.yaml
+TOD0.md
+
+# Tests
+tests/

@@ -160,7 +160,7 @@ def validate_input(df: pd.DataFrame, feature_cols: list[str]) -> pd.DataFrame:
                 "Column '%s' is non-numeric (%s) — attempting cast to float.",
                 col, df[col].dtype,
             )
-            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+            df[col] = pd.to_numeric(df[col], errors="coerce").astype(float).fillna(0)
 
     return df
 

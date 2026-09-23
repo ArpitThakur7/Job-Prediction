@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=64.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "job-ai-platform"
+version = "1.0.0"
+description = "AI-powered job-candidate matching platform using XGBoost"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "cnlarpit7-group"},
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+extend-exclude = ["ml/model", "data", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+indent-width = 4
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+exclude = ["ml/model/", "data/", ".venv/"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short -p no:cacheprovider"
+
+[tool.coverage.run]
+source = ["backend", "api", "ml", "frontend"]
+omit = ["*/tests/*", "*/__pycache__/*", "*/model/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "def setup_logging",
+]

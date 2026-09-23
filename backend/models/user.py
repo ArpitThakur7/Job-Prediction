@@ -3,7 +3,13 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
+
+try:
+    import email_validator  # noqa: F401
+    from pydantic import EmailStr
+except ImportError:
+    EmailStr = str  # type: ignore
 
 
 class UserBase(BaseModel):
@@ -50,6 +56,25 @@ class Token(BaseModel):
 
     access_token: str
     token_type: str = "bearer"
+    user: UserResponse | None = None
+
+
+class LoginRequest(BaseModel):
+    """
+    JSON Login Request Payload.
+    """
+
+    email: EmailStr
+    password: str
+
+
+class ResetPasswordRequest(BaseModel):
+    """
+    Reset Password Request Payload.
+    """
+
+    email: EmailStr
+    new_password: str = Field(min_length=8, max_length=256)
 
 
 class TokenData(BaseModel):

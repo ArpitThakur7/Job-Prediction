@@ -138,6 +138,9 @@ class FeaturePayload(BaseModel):
     experience_gap       : float = Field(..., description="Candidate exp − required exp (years)")
     education_score      : float = Field(..., ge=0,  description="Education alignment score")
     location_match       : float = Field(..., ge=0, le=1, description="1 if locations match")
+    category_match       : float = Field(0.0, ge=0, le=1, description="1 if categories match")
+    title_relevance      : float = Field(0.0, ge=0, le=1, description="Title relevance score")
+    semantic_similarity  : float = Field(0.0, ge=0, le=1, description="Semantic similarity score")
     skills_count_resume  : float = Field(..., ge=0,  description="Total skills on resume")
 
     # Optional metadata — passed through to the response, not used in scoring
@@ -196,6 +199,9 @@ _FEATURE_ORDER = [
     "experience_gap",
     "education_score",
     "location_match",
+    "category_match",
+    "title_relevance",
+    "semantic_similarity",
     "skills_count_resume",
 ]
 
@@ -213,6 +219,9 @@ def _score_one(payload: FeaturePayload, threshold: float) -> MatchResponse:
         payload.experience_gap,
         payload.education_score,
         payload.location_match,
+        payload.category_match,
+        payload.title_relevance,
+        payload.semantic_similarity,
         payload.skills_count_resume,
     ]], dtype=float)
 

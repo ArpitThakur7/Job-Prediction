@@ -1,0 +1,1 @@
+"""Integration tests for JOB-AI-PLATFORM."""

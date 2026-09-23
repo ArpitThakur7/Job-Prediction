@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -24,6 +24,7 @@ class ResumeCreate(ResumeBase):
     """
     Payload for resume upload/creation. Includes raw extracted text.
     """
+    
 
     raw_text: str
 
@@ -58,3 +59,4 @@ class MatchResult(BaseModel):
     matched_skills: List[str] = Field(default_factory=list)
     missing_skills: List[str] = Field(default_factory=list)
     rank: int
+    feature_breakdown: Optional[Dict[str, float]] = None

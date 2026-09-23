@@ -1,56 +1,67 @@
 # ── JOB_PREDICTION — unified requirements ─────────────────────────────────────
 # Install everything at once:
 # pip install -r requirements.txt
+# NOTE: version pins relaxed for Python 3.13 compatibility.
 
 # ── API (FastAPI) ──────────────────────────────────────────────────────────────
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-pydantic==2.8.2
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.6
+pydantic>=2.8.2
+email-validator>=2.2.0
+python-multipart>=0.0.9
 
 # ── Backend (FastAPI) ─────────────────────────────────────────────────────────
-pydantic-settings==2.4.0
-pymongo==4.10.1
-redis==5.0.7
-python-jose==3.3.0
-bcrypt==4.2.0
+pydantic-settings>=2.4.0
+pymongo>=4.10.1
+redis>=5.0.7
+python-jose>=3.3.0
+bcrypt>=4.2.0
 
 # ── Pinecone ───────────────────────────────────────────────────────────────────
-pinecone-client==6.0.0
+pinecone>=6.0.0,<7.0.0
 
 # ── ML core ───────────────────────────────────────────────────────────────────
-xgboost==2.1.1
-scikit-learn==1.4.2
-joblib==1.4.2
-numpy<2.0
-pandas==2.2.2
+xgboost>=2.1.1
+scikit-learn>=1.5.2
+joblib>=1.4.2
+numpy>=2.1
+pandas>=2.2.3
 
 # ── Explainability ────────────────────────────────────────────────────────────
-shap==0.46.0
+shap>=0.48.0
 
 # ── Hyperparameter tuning ─────────────────────────────────────────────────────
-optuna==3.6.1
+optuna>=3.6.1
 
 # ── Visualisation (plots + dashboard) ────────────────────────────────────────
-matplotlib==3.9.1
-seaborn==0.13.2
-plotly==5.23.0
+matplotlib>=3.9.2
+seaborn>=0.13.2
+plotly>=5.23.0
 
 # ── Dashboard ────────────────────────────────────────────────────────────────
-streamlit==1.37.0
-requests==2.32.3
+streamlit>=1.39.0
+requests>=2.32.3
 
 # ── Embeddings / NLP ─────────────────────────────────────────────────────────
-sentence-transformers==3.0.1
-spacy==3.7.5
+sentence-transformers>=3.3.0
+spacy>=3.8.4
 
-# ── PDF parsing ───────────────────────────────────────────────────────────────
-pdfplumber==0.11.0
+# ── Document Parsing ──────────────────────────────────────────────────────────
+pdfplumber>=0.11.0
+python-docx>=1.1.0
 
 # ── LLM / RAG ──────────────────────────────────────────────────────────────────
-langchain==0.3.20
-langchain-core==0.3.45
-langchain-community==0.3.15
-langchain-groq==0.2.2
+langchain>=0.3.20
+langchain-core>=0.3.45
+langchain-community>=0.3.15
+langchain-groq>=0.2.2
 
 # ── Reports ───────────────────────────────────────────────────────────────────
-reportlab==4.2.0
+reportlab>=4.2.0
+
+# ── Event Streaming (Apache Kafka) ────────────────────────────────────────────
+kafka-python-ng>=2.2.2
+
+# ── Distributed Processing (Apache Spark) ─────────────────────────────────────
+pyspark>=3.5.0
+
