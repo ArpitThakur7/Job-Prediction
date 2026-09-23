@@ -5,7 +5,7 @@ import logging
 import re
 import uuid
 from datetime import datetime, timedelta
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 from bcrypt import checkpw, gensalt, hashpw
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -55,10 +55,18 @@ def _create_access_token(email: str, expires_delta: timedelta) -> str:
     return create_access_token({"sub": email}, expires_delta)
 
 
+_IN_MEMORY_USERS: Dict[str, dict] = {}
+
+
 def _find_user_by_email(users_col, email: str):
-    """Case-insensitive email lookup in MongoDB."""
+    """Case-insensitive email lookup in MongoDB with in-memory fallback."""
     clean = email.strip()
-    return users_col.find_one({"email": {"$regex": f"^{re.escape(clean)}$", "$options": "i"}})
+    if users_col is not None:
+        try:
+            return users_col.find_one({"email": {"$regex": f"^{re.escape(clean)}$", "$options": "i"}})
+        except Exception:
+            pass
+    return _IN_MEMORY_USERS.get(clean.lower())
 
 
 def _build_user_response(user: dict) -> UserResponse:
@@ -156,7 +164,12 @@ async def register(user: UserCreate) -> UserResponse:
             "hashed_password": _create_password_hash(user.password),
             "created_at": now,
         }
-        users_col.insert_one(dict(created))
+        if users_col is not None:
+            try:
+                users_col.insert_one(dict(created))
+            except Exception as insert_err:
+                logger.warning("MongoDB user insert failed, falling back to memory: %s", insert_err)
+        _IN_MEMORY_USERS[created["email"].lower()] = created
 
         return UserResponse(
             id=created["id"],

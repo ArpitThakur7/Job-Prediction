@@ -292,22 +292,25 @@ export default function ResumeAnalyzer() {
       {/* Step Indicator Bar — Clickable */}
       <div className="step-pill-bar max-w-2xl mx-auto shadow-sm">
         <div
-          className={`step-pill ${step >= 1 ? "active" : ""} cursor-pointer`}
+          className={`step-pill ${step >= 1 ? "active" : ""} cursor-pointer touch-manipulation`}
           onClick={() => handleStepClick(1)}
         >
-          1. Select PDF Resume
+          <span className="hidden sm:inline">1. Select PDF Resume</span>
+          <span className="sm:hidden">1. Upload</span>
         </div>
         <div
-          className={`step-pill ${step >= 2 ? "active" : ""} ${!file && !resumeData ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
+          className={`step-pill ${step >= 2 ? "active" : ""} ${!file && !resumeData ? "opacity-40 cursor-not-allowed" : "cursor-pointer"} touch-manipulation`}
           onClick={() => handleStepClick(2)}
         >
-          2. Inspect Credentials
+          <span className="hidden sm:inline">2. Inspect Credentials</span>
+          <span className="sm:hidden">2. Inspect</span>
         </div>
         <div
-          className={`step-pill ${step >= 3 ? "active" : ""} ${!resumeData ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
+          className={`step-pill ${step >= 3 ? "active" : ""} ${!resumeData ? "opacity-40 cursor-not-allowed" : "cursor-pointer"} touch-manipulation`}
           onClick={() => handleStepClick(3)}
         >
-          3. 3D Match Prediction
+          <span className="hidden sm:inline">3. 3D Match Prediction</span>
+          <span className="sm:hidden">3. Matches</span>
         </div>
       </div>
 

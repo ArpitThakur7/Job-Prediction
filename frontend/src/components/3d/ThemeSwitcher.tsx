@@ -24,14 +24,14 @@ export default function ThemeSwitcher() {
             key={t.id}
             onClick={() => setTheme(t.id)}
             title={`Switch to ${t.name} Theme`}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer touch-manipulation select-none ${
               isActive
                 ? `bg-gradient-to-r ${t.color} text-black shadow-[0_0_12px_rgba(255,255,255,0.4)] scale-105`
                 : "text-[#8b8fa8] hover:text-white hover:bg-white/5"
             }`}
           >
             <span>{t.icon}</span>
-            <span className="hidden sm:inline">{t.name}</span>
+            <span className="hidden md:inline">{t.name}</span>
           </button>
         );
       })}

@@ -271,10 +271,36 @@ h1, h2, h3, h4, h5, h6 {
   color: #64748B;
 }
 
+@media (max-width: 640px) {
+  .step-pill-bar {
+    gap: 4px;
+    padding: 4px;
+    border-radius: 20px;
+  }
+  .step-pill {
+    padding: 6px 6px;
+    font-size: 0.68rem;
+  }
+}
+
 .step-pill.active {
   background: linear-gradient(135deg, var(--theme-primary, #4F46E5), var(--theme-secondary, #0EA5E9));
   color: #ffffff;
   box-shadow: 0 4px 12px var(--theme-glow, rgba(79, 70, 229, 0.3));
+}
+
+/* Mobile Touch & Scroll Utilities */
+.touch-manipulation {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Dark Theme Enhancements Across Site */

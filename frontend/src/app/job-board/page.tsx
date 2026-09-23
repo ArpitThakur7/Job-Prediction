@@ -291,13 +291,13 @@ export default function JobBoard() {
           </div>
 
           {/* Search Input */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
             <input
               type="text"
               placeholder="🔍 Search title or company..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-white border border-[#E0E7FF] rounded-full px-4 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/50 shadow-xs"
+              className="w-full sm:w-64 bg-white border border-[#E0E7FF] rounded-full px-4 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/50 shadow-xs"
             />
           </div>
         </div>
@@ -347,23 +347,23 @@ export default function JobBoard() {
               return (
                 <div
                   key={j.job_id}
-                  className="flip-card-container h-[360px] cursor-pointer"
+                  className="flip-card-container min-h-[370px] h-[370px] cursor-pointer touch-manipulation"
                   onClick={() => toggleFlip(j.job_id)}
                 >
                   <div className={`flip-card-inner ${isFlipped ? "flipped" : ""}`}>
                     
                     {/* FRONT OF CARD */}
-                    <div className="flip-card-front glass-panel p-6 flex flex-col justify-between border border-[#E0E7FF] shadow-lg">
+                    <div className="flip-card-front glass-panel p-5 sm:p-6 flex flex-col justify-between border border-[#E0E7FF] shadow-lg">
                       <div>
                         <div className="flex items-center justify-between mb-3">
-                          <span className="text-[10px] font-mono font-bold uppercase tracking-wider bg-[#E0E7FF] text-[#4F46E5] px-3 py-1 rounded-full border border-[#c7d2fe]">
+                          <span className="text-[10px] font-mono font-bold uppercase tracking-wider bg-[#E0E7FF] text-[#4F46E5] px-2.5 sm:px-3 py-1 rounded-full border border-[#c7d2fe]">
                             {j.category}
                           </span>
-                          <span className="px-3 py-1 bg-emerald-50 text-[#10B981] border border-emerald-200 rounded-full text-xs font-mono font-bold shadow-xs">
+                          <span className="px-2.5 sm:px-3 py-1 bg-emerald-50 text-[#10B981] border border-emerald-200 rounded-full text-xs font-mono font-bold shadow-xs">
                             {score}% Match
                           </span>
                         </div>
-                        <h4 className="text-xl font-bold font-heading text-slate-900">{j.title}</h4>
+                        <h4 className="text-lg sm:text-xl font-bold font-heading text-slate-900 leading-snug">{j.title}</h4>
                         <p className="text-xs font-semibold text-[#4F46E5] mt-1">🏢 {j.company}</p>
                         <p className="text-xs text-slate-500 mt-0.5">📍 {j.location}</p>
                       </div>
@@ -384,7 +384,7 @@ export default function JobBoard() {
                     </div>
 
                     {/* BACK OF CARD */}
-                    <div className="flip-card-back glass-panel p-6 flex flex-col justify-between border border-[#4F46E5]/40 shadow-xl">
+                    <div className="flip-card-back glass-panel p-5 sm:p-6 flex flex-col justify-between border border-[#4F46E5]/40 shadow-xl">
                       <div>
                         <div className="flex items-center justify-between mb-1">
                           <h4 className="text-base font-bold font-heading text-slate-900">Matched Skills & Compensation</h4>

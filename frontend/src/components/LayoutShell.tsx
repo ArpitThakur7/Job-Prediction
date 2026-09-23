@@ -247,12 +247,15 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
         </div>
       </aside>
 
-      {/* 2. Responsive Bottom Bar */}
+      {/* 2. Responsive Mobile Bottom Bar */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-40 backdrop-blur-xl flex justify-around items-center py-2 px-1 select-none min-[821px]:hidden h-16 shadow-[0_-5px_25px_rgba(0,0,0,0.05)] transition-colors duration-300"
+        className="fixed bottom-0 left-0 right-0 z-40 backdrop-blur-xl flex justify-around items-center select-none min-[821px]:hidden shadow-[0_-5px_25px_rgba(0,0,0,0.08)] transition-colors duration-300"
         style={{
-          backgroundColor: "var(--theme-header-bg, rgba(255, 255, 255, 0.95))",
-          borderTop: "1px solid var(--theme-panel-border, rgba(226, 232, 240, 0.8))",
+          backgroundColor: "var(--theme-header-bg, rgba(255, 255, 255, 0.96))",
+          borderTop: "1px solid var(--theme-panel-border, rgba(226, 232, 240, 0.85))",
+          paddingBottom: "max(6px, env(safe-area-inset-bottom))",
+          paddingTop: "4px",
+          height: "calc(58px + env(safe-area-inset-bottom, 0px))",
         }}
       >
         {navItems.map((item) => {
@@ -261,23 +264,23 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center gap-0.5 text-slate-500 hover:text-slate-900 transition-all text-[9px] font-heading ${
-                isActive ? "font-bold scale-110" : ""
+              className={`flex flex-col items-center justify-center gap-0.5 text-slate-500 hover:text-slate-900 transition-all text-[9.5px] font-heading px-1 py-1 min-w-[40px] touch-manipulation ${
+                isActive ? "font-bold scale-105" : "opacity-80"
               }`}
-              style={isActive ? { color: currentThemeColors.primary } : {}}
+              style={isActive ? { color: currentThemeColors.primary, opacity: 1 } : {}}
             >
-              <span className="text-lg">{item.icon}</span>
-              <span className="truncate max-w-[55px]">{item.name}</span>
+              <span className="text-lg leading-none">{item.icon}</span>
+              <span className="truncate max-w-[48px] leading-tight">{item.name}</span>
             </Link>
           );
         })}
       </nav>
 
       {/* 3. Main Page Context */}
-      <div className="flex-1 flex flex-col min-w-0 pb-16 min-[821px]:pb-0 z-10">
+      <div className="flex-1 flex flex-col min-w-0 pb-24 sm:pb-28 min-[821px]:pb-6 z-10">
         {/* Top Header */}
         <header
-          className="px-4 min-[821px]:px-8 py-4 min-[821px]:py-5 flex flex-col min-[821px]:flex-row min-[821px]:items-center justify-between gap-4 backdrop-blur-xl shrink-0 shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-colors duration-300"
+          className="px-3.5 sm:px-6 min-[821px]:px-8 py-3 sm:py-4 min-[821px]:py-5 flex flex-col min-[821px]:flex-row min-[821px]:items-center justify-between gap-3 sm:gap-4 backdrop-blur-xl shrink-0 shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-colors duration-300"
           style={{
             backgroundColor: "var(--theme-header-bg, rgba(255, 255, 255, 0.78))",
             borderBottom: "1px solid var(--theme-panel-border, rgba(226, 232, 240, 0.8))",
@@ -285,7 +288,7 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
         >
           <div>
             <h1
-              className="text-lg min-[821px]:text-2xl font-black font-heading bg-clip-text text-transparent m-0 leading-tight"
+              className="text-base sm:text-lg min-[821px]:text-2xl font-black font-heading bg-clip-text text-transparent m-0 leading-tight"
               style={{
                 backgroundImage: `linear-gradient(to right, var(--theme-text, #0f172a), ${currentThemeColors.primary})`,
               }}
@@ -293,7 +296,7 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
               {getPageTitle()}
             </h1>
             <p
-              className="text-[11px] min-[821px]:text-xs m-0 mt-1 font-medium"
+              className="text-[10px] sm:text-[11px] min-[821px]:text-xs m-0 mt-0.5 sm:mt-1 font-medium line-clamp-1 sm:line-clamp-none"
               style={{ color: "var(--theme-text-muted, #64748B)" }}
             >
               {getPageSubtitle()}
@@ -301,44 +304,53 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
           </div>
 
           {/* Theme Switcher, Account Auth, & Status capsules */}
-          <div className="flex items-center gap-3 flex-wrap min-[821px]:flex-nowrap">
-            <ThemeSwitcher />
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-[821px]:flex-nowrap justify-between sm:justify-start w-full min-[821px]:w-auto">
+            <div className="overflow-x-auto max-w-full pb-0.5 scrollbar-none">
+              <ThemeSwitcher />
+            </div>
             
-            {user ? (
-              <Link
-                href="/account"
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full text-white text-xs font-mono font-bold transition-all cursor-pointer shadow-xs"
-                style={{ backgroundColor: "var(--theme-primary, #4F46E5)" }}
-              >
-                <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px]">
-                  {user.full_name?.charAt(0).toUpperCase() || "U"}
-                </span>
-                <span>{user.full_name?.split(" ")[0] || "Account"}</span>
-              </Link>
-            ) : (
-              <Link
-                href="/account"
-                className="px-3.5 py-1.5 rounded-full text-white text-xs font-mono font-bold hover:shadow-md transition-all cursor-pointer shadow-xs flex items-center gap-1"
-                style={{
-                  background: `linear-gradient(to right, ${currentThemeColors.primary}, ${currentThemeColors.secondary})`,
-                  boxShadow: `0 4px 14px ${currentThemeColors.glow}`,
-                }}
-              >
-                <span>🔐</span> Sign In / Register
-              </Link>
-            )}
+            <div className="flex items-center gap-2 ml-auto min-[821px]:ml-0">
+              {user ? (
+                <Link
+                  href="/account"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs font-mono font-bold transition-all cursor-pointer shadow-xs touch-manipulation"
+                  style={{ backgroundColor: "var(--theme-primary, #4F46E5)" }}
+                >
+                  <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px]">
+                    {user.full_name?.charAt(0).toUpperCase() || "U"}
+                  </span>
+                  <span className="hidden xs:inline">{user.full_name?.split(" ")[0] || "Account"}</span>
+                </Link>
+              ) : (
+                <Link
+                  href="/account"
+                  className="px-3 py-1.5 rounded-full text-white text-xs font-mono font-bold hover:shadow-md transition-all cursor-pointer shadow-xs flex items-center gap-1 touch-manipulation"
+                  style={{
+                    background: `linear-gradient(to right, ${currentThemeColors.primary}, ${currentThemeColors.secondary})`,
+                    boxShadow: `0 4px 14px ${currentThemeColors.glow}`,
+                  }}
+                >
+                  <span>🔐</span>
+                  <span className="hidden sm:inline">Sign In / Register</span>
+                  <span className="sm:hidden">Sign In</span>
+                </Link>
+              )}
 
-            <div className="flex items-center gap-1.5">
-              {renderHeaderBadge("API", infraStatus.backend)}
-              {renderHeaderBadge("MongoDB", infraStatus.mongodb)}
-              {renderHeaderBadge("Pinecone", infraStatus.pinecone)}
-              {renderHeaderBadge("Groq", infraStatus.groq)}
+              <div className="hidden sm:flex items-center gap-1.5">
+                {renderHeaderBadge("API", infraStatus.backend)}
+                {renderHeaderBadge("MongoDB", infraStatus.mongodb)}
+                {renderHeaderBadge("Pinecone", infraStatus.pinecone)}
+                {renderHeaderBadge("Groq", infraStatus.groq)}
+              </div>
+              <div className="sm:hidden flex items-center">
+                {renderHeaderBadge("Online", infraStatus.backend || infraStatus.mongodb)}
+              </div>
             </div>
           </div>
         </header>
 
         {/* Content Body */}
-        <main className="flex-1 overflow-y-auto p-4 min-[821px]:p-8 fade-in">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-5 min-[821px]:p-8 fade-in">
           {children}
         </main>
       </div>

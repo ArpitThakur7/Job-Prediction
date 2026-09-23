@@ -137,6 +137,11 @@ async def list_jobs(
 
     try:
         jobs_col = get_collection("jobs")
+        if jobs_col is None:
+            from backend.routes.match import _load_fallback_jobs_from_csv
+            fallback_docs = _load_fallback_jobs_from_csv()
+            return [_job_response_from_doc(d) for d in fallback_docs[:limit]]
+
         query: Dict[str, Any] = {"is_active": {"$ne": False}}
 
         if location:
@@ -172,6 +177,15 @@ async def search_jobs(
     try:
         jobs_col = get_collection("jobs")
         needle = q.strip()
+        if jobs_col is None:
+            from backend.routes.match import _load_fallback_jobs_from_csv
+            fallback_docs = _load_fallback_jobs_from_csv()
+            matched = [
+                d for d in fallback_docs
+                if needle.lower() in (d.get("title") or "").lower() or needle.lower() in (d.get("description") or "").lower()
+            ]
+            return [_job_response_from_doc(d) for d in matched[:limit]]
+
         cursor = jobs_col.find(
             {
                 "is_active": True,
@@ -195,7 +209,13 @@ async def get_job(job_id: str) -> JobResponse:
     """
     try:
         jobs_col = get_collection("jobs")
-        doc = jobs_col.find_one({"job_id": job_id})
+        doc = None
+        if jobs_col is not None:
+            doc = jobs_col.find_one({"job_id": job_id})
+        else:
+            from backend.routes.match import _load_fallback_jobs_from_csv
+            fallback_docs = _load_fallback_jobs_from_csv()
+            doc = next((d for d in fallback_docs if str(d.get("job_id")) == str(job_id)), None)
         if not doc:
             raise HTTPException(status_code=404, detail="Job not found")
         return _job_response_from_doc(doc)

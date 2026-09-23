@@ -122,30 +122,32 @@ export default function CareerCoach() {
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* 3D AI Coach Top Header */}
       <CyberBorder glowColor="purple" active className="w-full">
-        <div className="p-6 min-[821px]:p-8 flex flex-col min-[821px]:flex-row items-center justify-between gap-6">
-          <div className="space-y-2 text-center min-[821px]:text-left">
+        <div className="p-4 sm:p-6 min-[821px]:p-8 flex flex-col min-[821px]:flex-row items-center justify-between gap-4 sm:gap-6">
+          <div className="space-y-1.5 sm:space-y-2 text-center min-[821px]:text-left">
             <span className="text-[10px] font-mono font-bold tracking-widest text-[#00ff88] uppercase bg-[#00ff88]/10 px-3 py-1 rounded-full border border-[#00ff88]/30">
               ⚡ Multi-Provider AI & Context Memory
             </span>
-            <h1 className="text-3xl min-[821px]:text-4xl font-black font-heading text-white tracking-tight">
+            <h1 className="text-2xl sm:text-3xl min-[821px]:text-4xl font-black font-heading text-white tracking-tight">
               3D AI Career Coach
             </h1>
-            <p className="text-xs text-[#8b8fa8] max-w-xl">
+            <p className="text-[11px] sm:text-xs text-[#8b8fa8] max-w-xl">
               Ask real-time career questions. Powered by Groq, Gemini, OpenRouter, OpenAI, and Anthropic with automatic multi-provider fallback.
             </p>
           </div>
 
-          <div className="shrink-0">
-            <AI3DAvatarOrb isThinking={generating} size={180} />
+          <div className="shrink-0 flex justify-center">
+            <div className="w-[120px] h-[120px] sm:w-[160px] sm:h-[160px] flex items-center justify-center">
+              <AI3DAvatarOrb isThinking={generating} size={140} />
+            </div>
           </div>
         </div>
       </CyberBorder>
 
       {/* Main Chat Interface Container */}
       <CyberBorder glowColor="cyan" className="w-full">
-        <div className="flex flex-col h-[580px] rounded-[15px] overflow-hidden">
+        <div className="flex flex-col h-[520px] sm:h-[580px] rounded-[15px] overflow-hidden">
           {/* Top Bar */}
-          <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-[#070913]/60 backdrop-blur-md select-none">
+          <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-white/10 flex items-center justify-between bg-[#070913]/60 backdrop-blur-md select-none">
             <div className="flex items-center gap-3">
               <span className="w-2.5 h-2.5 rounded-full bg-[#00ff88] animate-pulse" />
               <div>
@@ -201,7 +203,7 @@ export default function CareerCoach() {
                       className={`flex ${isBot ? "justify-start" : "justify-end"} fade-in`}
                     >
                       <div
-                        className={`max-w-[80%] rounded-2xl p-4 text-xs leading-relaxed ${
+                        className={`max-w-[92%] sm:max-w-[80%] rounded-2xl p-3.5 sm:p-4 text-xs leading-relaxed ${
                           isBot
                             ? "bg-[#0d1121]/90 border border-white/10 text-white shadow-lg"
                             : "bg-gradient-to-r from-[#6c63ff] to-[#00ff88] text-black font-semibold shadow-lg shadow-[#6c63ff]/20"
@@ -257,7 +259,7 @@ export default function CareerCoach() {
           {/* Form Input */}
           <form
             onSubmit={handleSubmit}
-            className="px-6 py-4 border-t border-white/10 bg-[#070913]/80 backdrop-blur-md flex gap-3 shrink-0"
+            className="px-3 sm:px-6 py-3 sm:py-4 border-t border-white/10 bg-[#070913]/80 backdrop-blur-md flex gap-2 sm:gap-3 shrink-0"
           >
             <input
               type="text"
@@ -265,12 +267,12 @@ export default function CareerCoach() {
               value={inputMsg}
               onChange={(e) => setInputMsg(e.target.value)}
               disabled={generating}
-              className="flex-1 bg-[#0d1121] border border-white/10 rounded-xl px-4 py-3 text-xs text-white placeholder-white/30 focus:border-[#00ff88] focus:outline-none font-mono"
+              className="flex-1 bg-[#0d1121] border border-white/10 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-xs text-white placeholder-white/30 focus:border-[#00ff88] focus:outline-none font-mono"
             />
             <button
               type="submit"
               disabled={generating || !inputMsg.trim()}
-              className="py-3 px-8 rounded-xl bg-gradient-to-r from-[#6c63ff] to-[#00ff88] text-black font-extrabold text-xs font-mono tracking-wider disabled:opacity-40 select-none cursor-pointer transition-all hover:scale-105 shadow-[0_0_20px_rgba(108,99,255,0.3)]"
+              className="py-2.5 sm:py-3 px-4 sm:px-8 rounded-xl bg-gradient-to-r from-[#6c63ff] to-[#00ff88] text-black font-extrabold text-xs font-mono tracking-wider disabled:opacity-40 select-none cursor-pointer transition-all hover:scale-105 shadow-[0_0_20px_rgba(108,99,255,0.3)] touch-manipulation"
             >
               Send
             </button>
