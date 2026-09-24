@@ -35,6 +35,11 @@
 
 ## 🌟 Key Features
 
+* **⚡ Salvo Agentic Job Applier & Zero-Auth Discovery**: Integrated local companion engine querying 130+ public board endpoints (Greenhouse, Lever, Ashby, RemoteOK, Remotive, Unstop) without login credentials or bot risk.
+* **🎯 Dual-Signal Scoring Architecture**: Blends explainable, deterministic rule-based triage (stack keywords, title match, remote/global eligibility) with the calibrated XGBoost supervised ML candidate-to-job match prediction.
+* **🛡️ Truth-Bounded Resume Tailoring**: LLM resume tailoring strictly grounded in master `resume.md` and verified `portfolio.yaml` facts. Post-generation truth guard strips hallucinations. Outputs ATS-parseable single-column PDF via Playwright.
+* **🤖 Assisted Form Pre-filler (The Golden Rule)**: Playwright Chromium browser opens application forms, fills exact contact facts and work authorization, attaches tailored PDF, and stops. It **NEVER** clicks Submit.
+* **📊 Excel Single Source of Truth**: Full Kanban & spreadsheet tracker backed by `data/applications.xlsx`. Scans merge non-destructively, preserving user-owned statuses and notes.
 * **🎯 Supervised Machine Learning (XGBoost + SHAP)**: Binary match classifier evaluated on semantic skill overlap, experience gaps, and education alignment with explainable SHAP feature attribution and 94.2% precision.
 * **⚡ Real-Time Event Streaming (Apache Kafka)**: High-throughput event topics (`job_ai_resume_events`, `job_ai_job_events`, `job_ai_match_events`) for asynchronous candidate processing, logging, and metrics.
 * **💥 Distributed Big-Data Compute (Apache Spark)**: PySpark batch engine capable of scoring, cross-joining, and vectorizing millions of job-candidate pairs in parallel.

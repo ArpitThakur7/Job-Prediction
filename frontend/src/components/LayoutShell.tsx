@@ -14,18 +14,30 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const navItems = [
     { name: "Dashboard", href: "/", icon: "🏠" },
-    { name: "Account", href: "/account", icon: "🔐" },
+    { name: "Salvo Feed", href: "/jobs", icon: "⚡" },
+    { name: "Tracker", href: "/applications", icon: "📊" },
+    { name: "Resume Hub", href: "/resume", icon: "📝" },
+    { name: "Job Board", href: "/job-board", icon: "💼" },
     { name: "Analyzer", href: "/analyzer", icon: "📄" },
     { name: "Parser", href: "/parser", icon: "🔍" },
-    { name: "Job Board", href: "/job-board", icon: "💼" },
     { name: "Coach", href: "/coach", icon: "🤖" },
+    { name: "Account", href: "/account", icon: "🔐" },
     { name: "Settings", href: "/settings", icon: "⚙️" },
   ];
 
   const getPageTitle = () => {
+    if (pathname.startsWith("/jobs/")) return "Posting Details & Fit Breakdown";
     switch (pathname) {
       case "/":
         return "Quantum 3D Dashboard";
+      case "/jobs":
+        return "Salvo Agentic Job Feed";
+      case "/applications":
+        return "Application Tracker & Pipeline";
+      case "/resume":
+        return "Truth Bank & Resume Hub";
+      case "/settings/salvo":
+        return "Salvo Engine Settings";
       case "/account":
         return "Account & Security Hub";
       case "/analyzer":
@@ -44,9 +56,18 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const getPageSubtitle = () => {
+    if (pathname.startsWith("/jobs/")) return "Deterministic triage analysis, XGBoost match score, and assisted apply.";
     switch (pathname) {
       case "/":
         return "Real-time candidate telemetry, 3D match scoring, and neural job recommendations.";
+      case "/jobs":
+        return "Zero-auth public board discovery, deterministic triage, and ML match probability.";
+      case "/applications":
+        return "Track job statuses from Discovered to Offer with Excel single source of truth.";
+      case "/resume":
+        return "Master resume and portfolio verified facts for truth-bounded tailoring.";
+      case "/settings/salvo":
+        return "Search profiles, board registry health, and LLM tailoring models.";
       case "/account":
         return "Manage account security, active sessions, and parsed profile credentials.";
       case "/analyzer":

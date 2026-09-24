@@ -1,110 +1,76 @@
-# Enterprise Scalable Cloud Architecture Specification
+# 🏗️ System Architecture: Salvo & Job Prediction 3D Platform
 
-## Overview
-
-The **JOB-AI-PLATFORM** is an enterprise-grade, event-driven microservices architecture built for high-throughput candidate matching, real-time RAG career coaching, and distributed big-data analytics.
-
-```mermaid
-flowchart TB
-    subgraph Clients["Client & Application Layer"]
-        REACT["React 19 / Vite UI<br/>(Port 3000)"]
-        DASH["Streamlit Analytics<br/>(Port 8501)"]
-    end
-
-    subgraph API_GW["API & Ingress Gateway"]
-        FA["FastAPI Backend Cluster<br/>(Port 8000)"]
-    end
-
-    subgraph Event_Bus["Event Streaming Layer (Apache Kafka)"]
-        ZK["Zookeeper Coordination<br/>(Port 2181)"]
-        KAFKA["Kafka Event Broker<br/>(Port 9092)"]
-        K_PROD["Kafka Producer Service"]
-        K_CONS["Kafka Consumer Worker"]
-    end
-
-    subgraph BigData_Engine["Distributed Compute Engine (Apache Spark)"]
-        SPARK_M["Spark Master Node<br/>(Port 7077 / 8080)"]
-        SPARK_W["Spark Worker Nodes<br/>(Port 8081)"]
-    end
-
-    subgraph Data_Stores["Persistence & Vector Stores"]
-        MG["MongoDB 7<br/>(Primary Store)"]
-        RD["Redis 7<br/>(Cache & Chat Memory)"]
-        PC["Pinecone / Local Vector DB<br/>(RAG Knowledge Base)"]
-    end
-
-    subgraph ML_Engine["Machine Learning Pipeline"]
-        XGB["XGBoost Matcher"]
-        SHAP["SHAP Explainer"]
-        ST["Sentence Transformers"]
-    end
-
-    REACT -->|"HTTPS / REST"| FA
-    DASH -->|"HTTP"| FA
-    FA -->|"Publish Events"| K_PROD
-    K_PROD --> KAFKA
-    KAFKA --> K_CONS
-    K_CONS --> RD
-    FA --> MG
-    FA --> RD
-    FA --> PC
-    FA --> XGB
-    FA -->|"Batch Compute"| SPARK_M
-    SPARK_M --> SPARK_W
-```
+This document describes the high-level architecture of the integrated platform, detailing the local companion runtime model, data flow, scoring pipeline, and security boundaries.
 
 ---
 
-## Component Architecture
+## 1. High-Level Architecture Overview
 
-### 1. API & Ingress Gateway (`backend/`)
-- **Framework**: FastAPI with Pydantic Settings
-- **Role**: Entry point for authentication, job CRUD, resume uploads, and live queries.
-- **Port**: `8000`
-
-### 2. Real-Time Event Streaming (`Apache Kafka`)
-- **Topics**:
-  - `job_ai_resume_events`: Streamed upon PDF upload & NLP parsing.
-  - `job_ai_job_events`: Streamed when recruiters post target job requirements.
-  - `job_ai_match_events`: High-speed event logs for candidate-job compatibility.
-- **Producer / Consumer**: [`backend/services/kafka_producer.py`](file:///c:/Users/admin/Desktop/JOB_PREDICTION/backend/services/kafka_producer.py) & [`backend/services/kafka_consumer.py`](file:///c:/Users/admin/Desktop/JOB_PREDICTION/backend/services/kafka_consumer.py).
-
-### 3. Distributed Big-Data Processing (`Apache Spark`)
-- **Engine**: PySpark 3.5.0 cluster (`ml/spark_pipeline.py`).
-- **Role**: Bulk cross-matching over millions of job-resume pairs, distributed TF-IDF vectorization, and data pipeline ETL.
-
-### 4. Vector DB & RAG Pipeline
-- **Vector DB**: Pinecone Cloud with local in-memory cosine similarity fallback.
-- **LLM Engine**: Multi-provider fallback chain (Groq → Gemini → OpenRouter → OpenAI → Anthropic → Local RAG Engine).
-
-### 5. Datastores
-- **MongoDB 7**: Document store for candidate profiles, resumes, and job listings.
-- **Redis 7**: Session cache, conversation history, and rate limiting.
-
----
-
-## Production Cloud Deployment Topology (AWS / GCP)
-
-For enterprise Kubernetes (EKS / GKE) production deployment:
+The platform unites an enterprise ML candidate matching platform (Python FastAPI, XGBoost, MongoDB, Redis) with **Salvo** (Zero-Auth Job Discovery, Fit-Scoring, Truth-Bounded Resume Tailoring & Form Pre-filler) and a Next.js 16 3D WebGL user interface.
 
 ```
-[ CloudFlare CDN / AWS Route53 ]
+┌────────────────────────────────────────────────────────────────────────┐
+│                        Next.js 16 Frontend                             │
+│                     (React 19 • Three.js WebGL)                        │
+│                                                                        │
+│   /jobs              /jobs/[id]           /applications     /resume    │
+│  (3D Feed)         (Fit Breakdown)       (Excel Tracker)   (Truth Bank)│
+└──────────────┬───────────────────────────────────┬─────────────────────┘
+               │ HTTP / SSE                        │ HTTP / REST
+               ▼                                   ▼
+┌──────────────────────────────┐    ┌────────────────────────────────────┐
+│      Salvo Engine (Node)     │    │      FastAPI Backend (Python)      │
+│         Port 4173            │    │             Port 8000              │
+│                              │    │                                    │
+│ • Zero-Auth Discovery Engine │    │ • Supervised XGBoost Matcher       │
+│ • Deterministic Filter/Score │    │ • SHAP Feature Attributions        │
+│ • Truth-Bounded Tailoring    │    │ • MongoDB 7 / Redis Cache          │
+│ • Playwright Form Pre-filler │    │ • RAG Career Coach                 │
+│ • Canonical ExcelJS Store    │    │ • Kafka Stream & Spark Batches     │
+└──────────────┬───────────────┘    └────────────────────────────────────┘
                │
                ▼
-   [ AWS ALB / NGINX Ingress Controller ]
-               │
-     ┌─────────┴─────────┐
-     ▼                   ▼
- [ FastAPI Pods ]    [ React UI Static Pods ]
-     │                   │
-     ├───────────────────┼──────────────────┐
-     ▼                   ▼                  ▼
-[ Managed Kafka ]  [ Apache Spark ]  [ Amazon DocumentDB / MongoDB ]
-  (AWS MSK)       (EMR / Databricks)
+┌────────────────────────────────────────────────────────────────────────┐
+│                   Local File System (Privacy Boundary)                 │
+│                                                                        │
+│  data/applications.xlsx   data/resume/resume.md   config/profile.yaml  │
+│  (Primary Tracker)        (Master Truth Source)   (Search Criteria)    │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
-1. **Ingress**: AWS ALB / NGINX Ingress with SSL termination.
-2. **Compute**: Autoscaling Kubernetes Pods (EKS) for FastAPI backend (HPA target 70% CPU).
-3. **Kafka Bus**: AWS MSK (Managed Streaming for Apache Kafka) or Confluent Cloud.
-4. **Spark Cluster**: AWS EMR or Databricks cluster for multi-node PySpark batch scoring.
-5. **Caching & DB**: AWS ElastiCache for Redis + MongoDB Atlas Cluster.
+---
+
+## 2. Key Subsystems
+
+### 2.1 Zero-Auth Discovery Engine (`engine/providers/`)
+Consumes only unauthenticated public ATS endpoints (no login credentials, no bot-detection risk):
+- **Greenhouse API**: `https://boards-api.greenhouse.io/v1/boards/{company}/jobs?content=true`
+- **Lever API**: `https://api.lever.co/v0/postings/{company}?mode=json`
+- **Ashby API**: `https://api.ashbyhq.com/posting-api/job-board/{company}`
+- **Aggregators**: RemoteOK, Remotive, Hacker News "Who is Hiring", Unstop (`/api/public/*` only).
+- **Provider Contract**: Every provider is an independent file exporting `{ id, detect, fetch }`.
+
+### 2.2 Dual-Signal Scoring Pipeline (`engine/lib/scoring.mjs`)
+1. **Deterministic Rule Score (0–100)**: `engine/lib/filter.mjs` calculates normalized fit scores against `config/profile.yaml` without LLM calls. Provides explainable reasons (`stack: react, node`, `open globally`, `title match`).
+2. **XGBoost ML Score (0–100)**: Evaluates semantic similarity, experience gaps, and skill overlap.
+3. **Combined Weighted Score**:
+   $$\text{Score}_{\text{combined}} = (w_{\text{relevance}} \times \text{Score}_{\text{det}}) + (w_{\text{prediction}} \times \text{Score}_{\text{ML}})$$
+   Configured in `engine/config/scoring.yaml`.
+
+### 2.3 Truth-Bounded Tailoring & Security (`engine/lib/truth-guard.mjs`)
+- Inputs are restricted to `data/resume/resume.md` and `config/portfolio.yaml`.
+- The job description is wrapped in security boundaries (`<UNTRUSTED_JOB_DESCRIPTION>`) to prevent prompt injection.
+- Post-generation verification strips or flags any hallucinated employer, date, skill, or metric before rendering.
+- Renders an ATS-parseable single-column PDF with Computer Modern fonts using Playwright.
+- Supports automated API mode (Claude / Gemini) and zero-cost Manual mode (prompt copy/paste).
+
+### 2.4 Assisted Form Pre-filler & The Golden Rule (`engine/lib/ats/`)
+- Playwright opens a visible browser window, attaches the tailored resume PDF, pre-fills factual contact info and `.env` work authorization answers.
+- **The Golden Rule**: The system **NEVER** clicks submit. Custom screening questions and final submission belong to the candidate.
+- Automated tests enforce that no submit button selectors exist in filler code.
+
+### 2.5 Storage Layer (`engine/lib/store/xlsx-store.mjs`)
+- `data/applications.xlsx` is the canonical single source of truth.
+- **Non-destructive re-scan**: Preserves user-owned columns (`status`, `appliedOn`, `notes`) across scans.
+- Sanitizes cell content against formula injection.
+- Tracks daily metrics in the `Daily Log` sheet for funnel analytics.
