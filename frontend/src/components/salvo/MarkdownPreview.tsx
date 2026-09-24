@@ -148,9 +148,9 @@ export default function MarkdownPreview({ content, className = "" }: MarkdownPre
       if (line.startsWith("# ")) {
         flushList(`list-before-h1-${idx}`);
         elements.push(
-          <div key={`h1-${idx}`} className="mt-6 mb-3 pb-2 border-b border-cyan-500/20">
-            <h1 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-              <span className="w-1.5 h-5 rounded-full bg-cyan-400" />
+          <div key={`h1-${idx}`} className="mt-6 mb-3 pb-2 border-b border-cyan-500/30">
+            <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              <span className="w-1.5 h-5 rounded-full bg-cyan-500" />
               {parseInline(line.slice(2))}
             </h1>
           </div>
@@ -162,8 +162,8 @@ export default function MarkdownPreview({ content, className = "" }: MarkdownPre
         flushList(`list-before-h2-${idx}`);
         elements.push(
           <div key={`h2-${idx}`} className="mt-5 mb-2.5">
-            <h2 className="text-base font-bold text-cyan-300 tracking-tight flex items-center gap-2">
-              <span className="w-1 h-3.5 rounded-full bg-cyan-500/60" />
+            <h2 className="text-base font-bold text-cyan-700 dark:text-cyan-300 tracking-tight flex items-center gap-2">
+              <span className="w-1 h-3.5 rounded-full bg-cyan-500" />
               {parseInline(line.slice(3))}
             </h2>
           </div>
@@ -174,7 +174,7 @@ export default function MarkdownPreview({ content, className = "" }: MarkdownPre
       if (line.startsWith("### ")) {
         flushList(`list-before-h3-${idx}`);
         elements.push(
-          <h3 key={`h3-${idx}`} className="mt-4 mb-2 text-sm font-semibold text-slate-200">
+          <h3 key={`h3-${idx}`} className="mt-4 mb-2 text-sm font-bold text-slate-800 dark:text-slate-200">
             {parseInline(line.slice(4))}
           </h3>
         );
@@ -185,7 +185,7 @@ export default function MarkdownPreview({ content, className = "" }: MarkdownPre
       if (line.startsWith("> ")) {
         flushList(`list-before-bq-${idx}`);
         elements.push(
-          <blockquote key={`bq-${idx}`} className="my-3 pl-4 border-l-2 border-cyan-500 bg-cyan-950/20 py-1.5 pr-3 rounded-r-lg text-xs text-cyan-200 italic font-mono">
+          <blockquote key={`bq-${idx}`} className="my-3 pl-4 border-l-2 border-cyan-500 bg-cyan-50 dark:bg-cyan-950/20 py-2 pr-3 rounded-r-lg text-xs text-cyan-900 dark:text-cyan-200 italic font-mono">
             {parseInline(line.slice(2))}
           </blockquote>
         );
@@ -195,7 +195,7 @@ export default function MarkdownPreview({ content, className = "" }: MarkdownPre
       // Horizontal rule
       if (line.trim() === "---" || line.trim() === "***") {
         flushList(`list-before-hr-${idx}`);
-        elements.push(<hr key={`hr-${idx}`} className="my-6 border-white/10" />);
+        elements.push(<hr key={`hr-${idx}`} className="my-6 border-slate-200 dark:border-white/10" />);
         return;
       }
 
@@ -204,7 +204,7 @@ export default function MarkdownPreview({ content, className = "" }: MarkdownPre
       if (listMatch) {
         inList = true;
         listItems.push(
-          <li key={`li-${idx}`} className="leading-relaxed">
+          <li key={`li-${idx}`} className="leading-relaxed text-slate-700 dark:text-slate-300">
             {parseInline(listMatch[2])}
           </li>
         );
@@ -216,7 +216,7 @@ export default function MarkdownPreview({ content, className = "" }: MarkdownPre
       if (numMatch) {
         inList = true;
         listItems.push(
-          <li key={`li-${idx}`} className="leading-relaxed">
+          <li key={`li-${idx}`} className="leading-relaxed text-slate-700 dark:text-slate-300">
             {parseInline(numMatch[2])}
           </li>
         );
@@ -233,7 +233,7 @@ export default function MarkdownPreview({ content, className = "" }: MarkdownPre
 
       // Regular paragraph
       elements.push(
-        <p key={`p-${idx}`} className="my-1.5 text-xs text-slate-300 leading-relaxed">
+        <p key={`p-${idx}`} className="my-1.5 text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-sans">
           {parseInline(line)}
         </p>
       );

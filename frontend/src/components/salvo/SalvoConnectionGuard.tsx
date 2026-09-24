@@ -58,8 +58,8 @@ export const SalvoConnectionGuard: React.FC<SalvoConnectionGuardProps> = ({
   if (checking) {
     return (
       <div className="flex flex-col items-center justify-center py-24 space-y-3">
-        <div className="w-10 h-10 border-4 border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin" />
-        <span className="text-xs font-mono text-slate-400">Connecting to Salvo Engine...</span>
+        <div className="w-10 h-10 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
+        <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">Connecting to Salvo Engine...</span>
       </div>
     );
   }
@@ -72,11 +72,7 @@ export const SalvoConnectionGuard: React.FC<SalvoConnectionGuardProps> = ({
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
-          className="p-5 rounded-2xl border backdrop-blur-xl shadow-xl mb-6"
-          style={{
-            backgroundColor: "rgba(127, 29, 29, 0.15)",
-            borderColor: "rgba(239, 68, 68, 0.3)",
-          }}
+          className="p-5 rounded-2xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-950/20 backdrop-blur-xl shadow-lg mb-6"
         >
           <div className="flex items-start gap-4">
             {/* Pulsing offline indicator */}
@@ -86,25 +82,25 @@ export const SalvoConnectionGuard: React.FC<SalvoConnectionGuardProps> = ({
             </div>
 
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-bold text-red-400 mb-1 font-mono">
+              <h3 className="text-sm font-bold text-red-700 dark:text-red-400 mb-1 font-mono">
                 Salvo Engine Offline
               </h3>
-              <p className="text-xs text-slate-400 leading-relaxed mb-3">
-                The companion engine at <code className="px-1.5 py-0.5 rounded bg-black/40 border border-white/10 text-red-300">http://127.0.0.1:4173</code> is
+              <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed mb-3">
+                The companion engine at <code className="px-1.5 py-0.5 rounded bg-white dark:bg-black/40 border border-slate-300 dark:border-white/10 text-red-700 dark:text-red-300 font-bold">http://127.0.0.1:4173</code> is
                 not responding. Job discovery, tailoring, and assisted apply require the local engine process.
               </p>
 
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">Start with:</span>
-                  <code className="px-3 py-1.5 rounded-lg bg-black/50 border border-white/10 text-xs font-mono text-slate-200 select-all">
+                  <span className="text-[10px] font-mono text-slate-600 dark:text-slate-400 uppercase font-bold tracking-wider">Start with:</span>
+                  <code className="px-3 py-1.5 rounded-xl bg-slate-900 text-white dark:bg-black/60 border border-slate-700 dark:border-white/10 text-xs font-mono font-bold select-all">
                     cd engine && node server.mjs
                   </code>
                   <button
                     onClick={handleCopyCommand}
-                    className="px-2.5 py-1.5 rounded-lg text-[10px] font-mono font-bold bg-white/10 border border-white/10 text-slate-300 hover:bg-white/20 transition-all"
+                    className="px-2.5 py-1.5 rounded-xl text-[10px] font-mono font-bold bg-white dark:bg-white/10 border border-slate-300 dark:border-white/10 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/20 transition-all shadow-sm"
                   >
-                    {copied ? "Copied!" : "📋 Copy"}
+                    {copied ? "✓ Copied!" : "📋 Copy"}
                   </button>
                 </div>
 
@@ -113,14 +109,14 @@ export const SalvoConnectionGuard: React.FC<SalvoConnectionGuardProps> = ({
                     setChecking(true);
                     checkHealth();
                   }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-mono border border-red-500/30 text-red-300 hover:bg-red-500/10 transition-colors"
+                  className="px-3 py-1.5 rounded-xl text-xs font-mono font-bold border border-red-300 dark:border-red-500/30 text-red-700 dark:text-red-300 bg-white dark:bg-transparent hover:bg-red-100 dark:hover:bg-red-500/10 transition-colors shadow-sm"
                 >
-                  🔄 Retry
+                  🔄 Retry Connection
                 </button>
               </div>
 
-              <p className="text-[10px] text-slate-500 font-mono mt-3">
-                Or use the unified launcher: <code className="px-1 py-0.5 rounded bg-black/30 text-slate-400">run.bat</code> (starts backend + engine + frontend together)
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 font-mono mt-3">
+                Or use the unified launcher: <code className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-black/30 font-bold text-slate-800 dark:text-slate-300">run.bat</code> (starts backend + engine + frontend together)
               </p>
             </div>
           </div>

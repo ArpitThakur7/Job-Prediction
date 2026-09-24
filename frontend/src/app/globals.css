@@ -303,6 +303,20 @@ h1, h2, h3, h4, h5, h6 {
   scrollbar-width: none;
 }
 
+/* Universal Light Mode High-Contrast Readability Protection */
+:root:not(.dark) .text-slate-100 {
+  color: #0f172a !important;
+}
+:root:not(.dark) .text-slate-200 {
+  color: #1e293b !important;
+}
+:root:not(.dark) .text-slate-300 {
+  color: #334155 !important;
+}
+:root:not(.dark) .text-slate-400 {
+  color: #475569 !important;
+}
+
 /* Dark Theme Enhancements Across Site */
 .dark body {
   background: var(--theme-bg-gradient, #060713);

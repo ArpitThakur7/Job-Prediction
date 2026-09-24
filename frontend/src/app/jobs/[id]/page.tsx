@@ -1,5 +1,7 @@
 import JobDetailClient from "./JobDetailClient";
 
+export const dynamic = "force-dynamic";
+
 export function generateStaticParams() {
   return [{ id: "sample" }];
 }

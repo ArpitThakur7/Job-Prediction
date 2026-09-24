@@ -301,7 +301,11 @@ export const salvoClient = {
 
   async getJob(idOrUrl: string) {
     const encoded = encodeURIComponent(idOrUrl);
-    return safeFetch(`/api/jobs/${encoded}`);
+    try {
+      return await safeFetch(`/api/jobs?url=${encoded}`);
+    } catch {
+      return await safeFetch(`/api/jobs/${encoded}`);
+    }
   },
 
   async tailorJob(jobUrl: string, options: { mode: "api" | "manual"; manualJson?: any }): Promise<TailorResult> {

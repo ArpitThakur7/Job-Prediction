@@ -230,6 +230,11 @@ function handleScanStream(req, res, scanId) {
 }
 
 async function handleGetJobs(url, res) {
+  const queryUrl = url.searchParams.get('url') || url.searchParams.get('id');
+  if (queryUrl) {
+    return await handleGetJobById(queryUrl, res);
+  }
+
   const mode = url.searchParams.get('mode') === 'india' ? 'india' : 'global';
   const query = (url.searchParams.get('query') || '').toLowerCase();
   const source = url.searchParams.get('source') || '';
@@ -278,13 +283,24 @@ async function handleGetJobs(url, res) {
 }
 
 async function handleGetJobById(jobIdOrUrl, res) {
-  const decoded = decodeURIComponent(jobIdOrUrl);
+  const decoded = decodeURIComponent(jobIdOrUrl).trim();
+  const normalizedTarget = decoded.replace(/\/$/, '').toLowerCase();
   const paths = [join(ROOT, 'data/pipeline.json'), join(ROOT, 'data/pipeline-india.json')];
 
   for (const path of paths) {
     if (!existsSync(path)) continue;
     const pipeline = JSON.parse(await readFile(path, 'utf8'));
-    const job = (pipeline.jobs || []).find((j) => j.url === decoded || String(j.id) === decoded);
+    const job = (pipeline.jobs || []).find((j) => {
+      if (!j) return false;
+      if (j.url === decoded || String(j.id) === decoded) return true;
+      if (decodeURIComponent(j.url || '') === decoded) return true;
+      const jNorm = String(j.url || '').trim().replace(/\/$/, '').toLowerCase();
+      if (jNorm === normalizedTarget) return true;
+      if (decoded.length > 15 && jNorm.length > 15 && (jNorm.includes(normalizedTarget) || normalizedTarget.includes(jNorm))) {
+        return true;
+      }
+      return false;
+    });
     if (job) return sendJson(res, 200, { job });
   }
 
