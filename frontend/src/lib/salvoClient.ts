@@ -1,8 +1,13 @@
 /**
  * Typed API Client for Salvo Companion Engine
+ * All methods check res.ok and throw SalvoApiError on failures.
  */
 
 export const SALVO_API_URL = process.env.NEXT_PUBLIC_SALVO_API || "http://127.0.0.1:4173";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 export interface SalvoJob {
   url: string;
@@ -85,10 +90,108 @@ export interface TailorResult {
   error?: string;
 }
 
-export const salvoClient = {
-  async getHealth() {
+export interface EngineHealth {
+  status: "online" | "offline";
+  engine?: string;
+  version?: string;
+  port?: number;
+  providersCount?: number;
+  excelStoreConnected?: boolean;
+  playwrightAvailable?: boolean;
+  activeScanId?: string | null;
+  timestamp?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Error class
+// ---------------------------------------------------------------------------
+
+export class SalvoApiError extends Error {
+  public status: number;
+  public endpoint: string;
+  public body: any;
+
+  constructor(message: string, status: number, endpoint: string, body?: any) {
+    super(message);
+    this.name = "SalvoApiError";
+    this.status = status;
+    this.endpoint = endpoint;
+    this.body = body;
+  }
+
+  get isOffline() {
+    return this.status === 0;
+  }
+
+  get isConflict() {
+    return this.status === 409;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+async function safeFetch(endpoint: string, init?: RequestInit): Promise<any> {
+  let res: Response;
+  try {
+    res = await fetch(`${SALVO_API_URL}${endpoint}`, init);
+  } catch (err: any) {
+    throw new SalvoApiError(
+      `Engine unreachable at ${SALVO_API_URL}. Is the Salvo engine running?`,
+      0,
+      endpoint,
+    );
+  }
+
+  if (!res.ok) {
+    let body: any = null;
     try {
-      const res = await fetch(`${SALVO_API_URL}/api/health`);
+      body = await res.json();
+    } catch {}
+    throw new SalvoApiError(
+      body?.error || `Request failed: ${res.status} ${res.statusText}`,
+      res.status,
+      endpoint,
+      body,
+    );
+  }
+
+  return await res.json();
+}
+
+async function safeFetchRaw(endpoint: string, init?: RequestInit): Promise<Response> {
+  let res: Response;
+  try {
+    res = await fetch(`${SALVO_API_URL}${endpoint}`, init);
+  } catch (err: any) {
+    throw new SalvoApiError(
+      `Engine unreachable at ${SALVO_API_URL}. Is the Salvo engine running?`,
+      0,
+      endpoint,
+    );
+  }
+  if (!res.ok) {
+    let body: any = null;
+    try { body = await res.json(); } catch {}
+    throw new SalvoApiError(
+      body?.error || `Request failed: ${res.status} ${res.statusText}`,
+      res.status,
+      endpoint,
+      body,
+    );
+  }
+  return res;
+}
+
+// ---------------------------------------------------------------------------
+// Client
+// ---------------------------------------------------------------------------
+
+export const salvoClient = {
+  async getHealth(): Promise<EngineHealth> {
+    try {
+      const res = await fetch(`${SALVO_API_URL}/api/health`, { signal: AbortSignal.timeout(3000) });
       if (!res.ok) return { status: "offline" };
       return await res.json();
     } catch {
@@ -97,26 +200,72 @@ export const salvoClient = {
   },
 
   async startScan(mode: "global" | "india" = "global") {
-    const res = await fetch(`${SALVO_API_URL}/api/scan`, {
+    return safeFetch("/api/scan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode }),
     });
-    return await res.json();
   },
 
-  createScanStream(scanId: string, onMessage: (data: any) => void, onError?: (err: any) => void) {
-    const es = new EventSource(`${SALVO_API_URL}/api/scan/${scanId}/stream`);
-    es.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        onMessage(data);
-      } catch (err) {
-        console.error("Scan stream parse error", err);
-      }
+  /**
+   * Creates an SSE stream with automatic reconnection and exponential backoff.
+   * Returns a controller object to close the stream.
+   */
+  createScanStream(
+    scanId: string,
+    onMessage: (data: any) => void,
+    onError?: (err: any) => void,
+    options?: { maxRetries?: number },
+  ) {
+    const maxRetries = options?.maxRetries ?? 3;
+    let retries = 0;
+    let es: EventSource | null = null;
+    let closed = false;
+
+    function connect() {
+      if (closed) return;
+      es = new EventSource(`${SALVO_API_URL}/api/scan/${scanId}/stream`);
+
+      es.onmessage = (event) => {
+        retries = 0; // reset on successful message
+        try {
+          const data = JSON.parse(event.data);
+          onMessage(data);
+          // Auto-close on terminal events
+          if (data.type === "done" || data.type === "error") {
+            controller.close();
+          }
+        } catch (err) {
+          console.error("[SalvoSSE] Parse error:", err);
+        }
+      };
+
+      es.onerror = (err) => {
+        es?.close();
+        if (closed) return;
+        if (retries < maxRetries) {
+          retries++;
+          const delay = Math.min(1000 * Math.pow(2, retries), 8000);
+          console.warn(`[SalvoSSE] Reconnecting in ${delay}ms (attempt ${retries}/${maxRetries})...`);
+          onMessage({ type: "reconnecting", attempt: retries, maxRetries });
+          setTimeout(connect, delay);
+        } else {
+          console.error("[SalvoSSE] Max retries exhausted.");
+          if (onError) onError(err);
+          onMessage({ type: "error", error: "SSE connection lost after max retries." });
+        }
+      };
+    }
+
+    const controller = {
+      close: () => {
+        closed = true;
+        es?.close();
+      },
     };
-    if (onError) es.onerror = onError;
-    return es;
+
+    connect();
+    return controller;
   },
 
   async getJobs(params: {
@@ -135,48 +284,42 @@ export const salvoClient = {
     if (params.page) query.set("page", String(params.page));
     if (params.limit) query.set("limit", String(params.limit));
 
-    const res = await fetch(`${SALVO_API_URL}/api/jobs?${query.toString()}`);
-    return await res.json();
+    return safeFetch(`/api/jobs?${query.toString()}`);
   },
 
   async getJob(idOrUrl: string) {
     const encoded = encodeURIComponent(idOrUrl);
-    const res = await fetch(`${SALVO_API_URL}/api/jobs/${encoded}`);
-    return await res.json();
+    return safeFetch(`/api/jobs/${encoded}`);
   },
 
   async tailorJob(jobUrl: string, options: { mode: "api" | "manual"; manualJson?: any }): Promise<TailorResult> {
     const encoded = encodeURIComponent(jobUrl);
-    const res = await fetch(`${SALVO_API_URL}/api/jobs/${encoded}/tailor`, {
+    return safeFetch(`/api/jobs/${encoded}/tailor`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(options),
     });
-    return await res.json();
   },
 
   async prepJob(jobUrl: string) {
     const encoded = encodeURIComponent(jobUrl);
-    const res = await fetch(`${SALVO_API_URL}/api/jobs/${encoded}/prep`, {
+    return safeFetch(`/api/jobs/${encoded}/prep`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ confirm: true }),
     });
-    return await res.json();
   },
 
   async getApplications(): Promise<{ sheets: Record<string, ApplicationRecord[]>; dailyLog: DailyLogEntry[] }> {
-    const res = await fetch(`${SALVO_API_URL}/api/applications`);
-    return await res.json();
+    return safeFetch("/api/applications");
   },
 
   async patchApplication(url: string, field: "status" | "notes" | "appliedOn", value: any, sheet = "Applications") {
-    const res = await fetch(`${SALVO_API_URL}/api/applications`, {
+    return safeFetch("/api/applications", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url, field, value, sheet }),
     });
-    return await res.json();
   },
 
   getExportUrl(format: "xlsx" | "csv") {
@@ -184,44 +327,42 @@ export const salvoClient = {
   },
 
   async getProfile() {
-    const res = await fetch(`${SALVO_API_URL}/api/profile`);
-    return await res.json();
+    return safeFetch("/api/profile");
   },
 
   async updateProfile(profile: any) {
-    const res = await fetch(`${SALVO_API_URL}/api/profile`, {
+    return safeFetch("/api/profile", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ profile }),
     });
-    return await res.json();
   },
 
   async getPortfolio() {
-    const res = await fetch(`${SALVO_API_URL}/api/portfolio`);
-    return await res.json();
+    return safeFetch("/api/portfolio");
   },
 
   async updatePortfolio(portfolio: any) {
-    const res = await fetch(`${SALVO_API_URL}/api/portfolio`, {
+    return safeFetch("/api/portfolio", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ portfolio }),
     });
-    return await res.json();
   },
 
   async getResume() {
-    const res = await fetch(`${SALVO_API_URL}/api/resume`);
-    return await res.json();
+    return safeFetch("/api/resume");
   },
 
   async updateResume(content: string) {
-    const res = await fetch(`${SALVO_API_URL}/api/resume`, {
+    return safeFetch("/api/resume", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content }),
     });
-    return await res.json();
+  },
+
+  async getProviderHealth() {
+    return safeFetch("/api/providers/health");
   },
 };

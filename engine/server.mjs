@@ -72,6 +72,9 @@ function detectAtsHandler(url) {
 // Route Handlers
 // ---------------------------------------------------------------------------
 
+// Track the currently running scan to prevent duplicate concurrent scans
+let activeScanId = null;
+
 async function handleHealth(res) {
   let excelOk = false;
   try {
@@ -89,14 +92,29 @@ async function handleHealth(res) {
     providersCount: providers.size,
     excelStoreConnected: excelOk,
     playwrightAvailable: true,
+    activeScanId,
     timestamp: new Date().toISOString(),
   });
 }
 
 async function handleScan(req, res) {
+  // Scan deduplication: reject if a scan is already running
+  if (activeScanId) {
+    const existing = activeScans.get(activeScanId);
+    if (existing && existing.status === 'running') {
+      return sendJson(res, 409, {
+        error: 'A scan is already in progress.',
+        activeScanId,
+        status: existing.status,
+        currentSource: existing.currentSource,
+      });
+    }
+  }
+
   const body = await readJsonBody(req);
   const mode = body.mode === 'india' ? 'india' : 'global';
   const scanId = `scan_${Date.now()}_${++scanCounter}`;
+  activeScanId = scanId;
 
   const scanState = {
     id: scanId,
@@ -173,6 +191,7 @@ async function handleScan(req, res) {
 
       scanState.status = 'completed';
       scanState.jobsFound = scoredJobs.length;
+      activeScanId = null;
       broadcast({ type: 'done', scanId, stats, totalJobs: scoredJobs.length });
 
       for (const client of scanState.clients) {
@@ -181,6 +200,7 @@ async function handleScan(req, res) {
     } catch (err) {
       scanState.status = 'failed';
       scanState.error = err.message;
+      activeScanId = null;
       for (const client of scanState.clients) {
         try {
           client.write(`data: ${JSON.stringify({ type: 'error', error: err.message })}\n\n`);
@@ -477,6 +497,39 @@ async function handleDownload(url, res) {
   res.end(data);
 }
 
+async function handleProviderHealth(res) {
+  const providers = await loadProviders();
+  const results = [];
+
+  for (const [name, provider] of providers) {
+    const start = Date.now();
+    let status = 'unknown';
+    let latency = null;
+    let error = null;
+
+    try {
+      // Simple check: providers with detect() or fetch() capability
+      if (typeof provider.detect === 'function') {
+        status = 'available';
+      }
+      latency = Date.now() - start;
+    } catch (err) {
+      status = 'error';
+      error = err.message;
+      latency = Date.now() - start;
+    }
+
+    results.push({ name, status, latency, error });
+  }
+
+  sendJson(res, 200, {
+    providers: results,
+    total: results.length,
+    healthy: results.filter((p) => p.status === 'available').length,
+    timestamp: new Date().toISOString(),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Server Entry
 // ---------------------------------------------------------------------------
@@ -497,6 +550,7 @@ const server = createServer(async (req, res) => {
       const scanId = url.pathname.split('/')[3];
       return handleScanStream(req, res, scanId);
     }
+    if (url.pathname === '/api/providers/health' && req.method === 'GET') return await handleProviderHealth(res);
     if (url.pathname === '/api/jobs' && req.method === 'GET') return await handleGetJobs(url, res);
     if (url.pathname.startsWith('/api/jobs/') && !url.pathname.endsWith('/tailor') && !url.pathname.endsWith('/prep')) {
       const id = url.pathname.replace('/api/jobs/', '');

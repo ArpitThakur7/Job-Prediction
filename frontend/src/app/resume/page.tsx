@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { salvoClient } from "@/lib/salvoClient";
+import { salvoClient, SalvoApiError } from "@/lib/salvoClient";
+import SalvoConnectionGuard from "@/components/salvo/SalvoConnectionGuard";
 import { useApp } from "@/context/AppContext";
+import { useToast } from "@/context/ToastContext";
 
 export default function ResumeHubPage() {
   const { currentThemeColors } = useApp();
+  const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState<"resume" | "portfolio">("resume");
   const [resumeText, setResumeText] = useState("");
   const [portfolioYaml, setPortfolioYaml] = useState("");
@@ -38,7 +41,8 @@ export default function ResumeHubPage() {
     setNotice(null);
     try {
       await salvoClient.updateResume(resumeText);
-      setNotice("✅ Master resume.md updated successfully!");
+      addToast({ type: "success", title: "Resume saved", message: "Master resume.md updated successfully." });
+      setNotice(null);
     } catch (err: any) {
       setNotice(`❌ Error saving: ${err.message}`);
     } finally {
@@ -52,7 +56,8 @@ export default function ResumeHubPage() {
     try {
       const parsed = JSON.parse(portfolioYaml);
       await salvoClient.updatePortfolio(parsed);
-      setNotice("✅ Verified portfolio.yaml facts updated successfully!");
+      addToast({ type: "success", title: "Portfolio saved", message: "Verified portfolio.yaml facts updated." });
+      setNotice(null);
     } catch (err: any) {
       setNotice(`❌ Error saving JSON/YAML: ${err.message}`);
     } finally {
@@ -61,6 +66,7 @@ export default function ResumeHubPage() {
   };
 
   return (
+    <SalvoConnectionGuard>
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Top Banner */}
       <div
@@ -183,5 +189,6 @@ export default function ResumeHubPage() {
         </div>
       )}
     </div>
+    </SalvoConnectionGuard>
   );
 }

@@ -1,13 +1,17 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { salvoClient } from "@/lib/salvoClient";
+import { salvoClient, SalvoApiError } from "@/lib/salvoClient";
+import SalvoConnectionGuard from "@/components/salvo/SalvoConnectionGuard";
 import { useApp } from "@/context/AppContext";
+import { useToast } from "@/context/ToastContext";
 
 export default function SalvoSettingsPage() {
   const { currentThemeColors } = useApp();
+  const { addToast } = useToast();
   const [profileText, setProfileText] = useState("");
   const [health, setHealth] = useState<any>(null);
+  const [providerHealth, setProviderHealth] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -21,6 +25,14 @@ export default function SalvoSettingsPage() {
       ]);
       setProfileText(JSON.stringify(pData.profile || {}, null, 2));
       setHealth(hData);
+
+      // Fetch provider health if engine is online
+      if (hData.status === "online") {
+        try {
+          const ph = await salvoClient.getProviderHealth();
+          setProviderHealth(ph);
+        } catch {}
+      }
     } catch (err) {
       console.error("Failed to load salvo settings", err);
     } finally {
@@ -38,7 +50,8 @@ export default function SalvoSettingsPage() {
     try {
       const parsed = JSON.parse(profileText);
       await salvoClient.updateProfile(parsed);
-      setNotice("✅ Profile configuration updated successfully!");
+      addToast({ type: "success", title: "Profile saved", message: "Search profile configuration updated." });
+      setNotice(null);
     } catch (err: any) {
       setNotice(`❌ Error saving: ${err.message}`);
     } finally {
@@ -47,6 +60,7 @@ export default function SalvoSettingsPage() {
   };
 
   return (
+    <SalvoConnectionGuard>
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Top Banner */}
       <div
@@ -156,6 +170,45 @@ export default function SalvoSettingsPage() {
           />
         )}
       </div>
+
+      {/* Provider Health Grid */}
+      {providerHealth && providerHealth.providers && (
+        <div
+          className="p-6 rounded-3xl border backdrop-blur-xl shadow-xl space-y-4"
+          style={{
+            backgroundColor: currentThemeColors.panelBg || "rgba(15, 23, 42, 0.75)",
+            borderColor: currentThemeColors.panelBorder || "rgba(255, 255, 255, 0.1)",
+          }}
+        >
+          <div className="flex items-center justify-between pb-3 border-b border-white/10">
+            <div>
+              <h2 className="font-bold text-sm text-slate-200">Discovery Provider Status</h2>
+              <p className="text-[11px] text-slate-400 font-mono">
+                {providerHealth.healthy} of {providerHealth.total} providers available
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {providerHealth.providers.map((p: any) => (
+              <div
+                key={p.name}
+                className="p-3 rounded-xl border border-white/5 bg-black/20 text-xs font-mono"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-slate-300 font-bold capitalize">{p.name}</span>
+                  <span className={`w-2 h-2 rounded-full ${p.status === "available" ? "bg-emerald-400" : "bg-red-500"}`} />
+                </div>
+                <span className="text-[10px] text-slate-500">
+                  {p.status === "available" ? "Ready" : p.error || "Error"}
+                  {p.latency !== null ? ` · ${p.latency}ms` : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
+    </SalvoConnectionGuard>
   );
 }

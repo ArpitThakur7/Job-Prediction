@@ -8,6 +8,7 @@ import HolographicGlobe3D from "@/components/3d/HolographicGlobe3D";
 import Interactive3DCubeMesh from "@/components/3d/Interactive3DCubeMesh";
 import Card3DTilt from "@/components/3d/Card3DTilt";
 import Link from "next/link";
+import SalvoDashboardWidget from "@/components/salvo/SalvoDashboardWidget";
 
 interface Job {
   job_id: string;
@@ -141,6 +142,9 @@ export default function Dashboard() {
       {/* 2. BENTO GRID DASHBOARD LAYOUT */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
+        {/* Tile 0: Salvo Engine Status Widget */}
+        <SalvoDashboardWidget />
+
         {/* Tile 1: 3D Holographic Globe */}
         <Card3DTilt maxDegree={8} scaleOnHover={1.01} className="glass-panel p-6 md:col-span-2 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4">

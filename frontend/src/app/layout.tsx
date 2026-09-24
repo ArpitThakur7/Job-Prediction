@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AppProvider } from "@/context/AppContext";
+import { ToastProvider } from "@/context/ToastContext";
 import LayoutShell from "@/components/LayoutShell";
 
 export const metadata: Metadata = {
@@ -17,7 +18,9 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full bg-gradient-to-b from-[#FAFBFF] to-[#EEF2FF] text-slate-900">
         <AppProvider>
-          <LayoutShell>{children}</LayoutShell>
+          <ToastProvider>
+            <LayoutShell>{children}</LayoutShell>
+          </ToastProvider>
         </AppProvider>
       </body>
     </html>
