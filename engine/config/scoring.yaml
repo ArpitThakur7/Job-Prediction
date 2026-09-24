@@ -1,0 +1,11 @@
+# Combined Scoring Configuration
+# Balances Salvo deterministic rule-based score (0-100) and ML model match prediction (0-100)
+
+weights:
+  relevance: 0.60    # Salvo rule score (stack keywords, title match, remote/global eligibility)
+  prediction: 0.40   # XGBoost ML candidate-to-job match probability
+
+thresholds:
+  apply_min: 65.0       # Minimum combined score to queue for tailoring / apply
+  high_confidence: 80.0 # Highlighted with glowing badge in 3D UI
+  max_per_company: 3    # Limit applications per company to maintain queue diversity

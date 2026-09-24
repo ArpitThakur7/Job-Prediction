@@ -56,3 +56,15 @@ Thumbs.db
 *.key
 secrets/
 
+# Salvo Local-First Privacy (personal tracking & credentials stay local)
+*.pdf
+data/applications.xlsx
+data/pipeline*.json
+data/resume/resume.md
+data/generated/
+engine/node_modules/
+engine/data
+engine/config/profile.yaml
+engine/config/portfolio.yaml
+auth/sessions/
+
