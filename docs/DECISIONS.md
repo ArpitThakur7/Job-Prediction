@@ -63,3 +63,66 @@ This document tracks all key technical decisions, trade-offs, and rationale made
   - **The Golden Rule**: The system NEVER clicks Submit under any circumstance.
   - An automated test is established to inspect ATS filler source code and enforce that no submit button selectors or actions exist.
   - All subjective screening questions, demographic fields, and final review remain the user's explicit responsibility.
+
+---
+
+## Decision 6: Resilient Client Error Handling & Typed API Errors
+* **Status**: Accepted
+* **Context**: The original `salvoClient` methods called `res.json()` without checking `res.ok`, causing cryptic client-side failures.
+* **Decision**:
+  - Introduce a `SalvoApiError` class with `status`, `endpoint`, and semantic helpers (`isOffline`, `isConflict`).
+  - All API calls routed through a shared `safeFetch()` that validates response status before parsing JSON.
+  - Engine unreachable errors (`TypeError: fetch failed`) are caught and wrapped as `SalvoApiError(status: 0)`.
+  - SSE scan stream now includes automatic reconnection with exponential backoff (max 3 retries, 1-8s intervals).
+
+---
+
+## Decision 7: Engine Connection Guard & Health-Aware UI
+* **Status**: Accepted
+* **Context**: Users frequently forget to start the companion engine, resulting in blank Salvo pages.
+* **Decision**:
+  - Implement `SalvoConnectionGuard` wrapper that checks `/api/health` on mount and polls every 10s.
+  - When engine is offline: shows a diagnostic banner with the startup command and a "Copy" button.
+  - Supports `degradedMode` (default true): still renders page content behind the banner.
+  - Auto-recovers when the engine comes online.
+
+---
+
+## Decision 8: Scan Deduplication
+* **Status**: Accepted
+* **Context**: Double-clicking "Scan Boards Now" or concurrent scan triggers could corrupt `pipeline.json`.
+* **Decision**:
+  - Track `activeScanId` at module scope in the engine server.
+  - New scan requests during an active scan return `409 Conflict` with the current scan ID and source.
+  - `activeScanId` is cleared on scan completion or failure.
+
+---
+
+## Decision 9: Global Toast Notification System
+* **Status**: Accepted
+* **Context**: Status messages used inline state divs that disappear on navigation or re-render.
+* **Decision**:
+  - Implement `ToastProvider` context with fixed bottom-right container.
+  - 4 toast types: `success`, `error`, `info`, `warning` with distinct color themes.
+  - Spring-physics entry/exit animations via Framer Motion.
+  - Auto-dismiss (4s default, 6s for errors), max 5 visible, manual dismiss button.
+
+---
+
+## Decision 10: Dynamic Scoring Calibration & Live Simulation Sandbox
+* **Status**: Accepted
+* **Context**: Scoring balance between deterministic rule match and XGBoost ML predictions was only configurable via raw YAML editing.
+* **Decision**:
+  - Add `/api/scoring` GET and POST endpoints to the engine server.
+  - Implement `ScoringWeightsEditor` in Settings with linked dual slider (relevance vs. ML prediction summing to 100%).
+  - Include an interactive simulation sandbox allowing users to test scores and preview how weights affect the final composite score and triage verdict in real time.
+
+---
+
+## Decision 11: Live Markdown Preview & Interactive Pipeline Funnel
+* **Status**: Accepted
+* **Context**: The Resume Hub only had a raw textarea without formatted output, and the application tracker had flat status tiles without stage drop-off telemetry.
+* **Decision**:
+  - Implement zero-dependency `MarkdownPreview` component with split/preview/edit view modes, word/character counter, and `Ctrl+S` keyboard shortcuts.
+  - Implement `PipelineFunnel` with stage-by-stage conversion drop-off percentages, animated fill progress, and click-to-filter capability across Kanban and Table views.
+

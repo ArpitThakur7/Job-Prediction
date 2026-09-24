@@ -445,6 +445,23 @@ async function handleResume(req, res) {
   }
 }
 
+async function handleScoring(req, res) {
+  const scoringPath = join(ROOT, 'config/scoring.yaml');
+  if (req.method === 'GET') {
+    const scoring = await loadYaml('config/scoring.yaml').catch(() => ({
+      weights: { relevance: 0.6, prediction: 0.4 },
+      thresholds: { apply_min: 65, high_confidence: 80, max_per_company: 3 },
+    }));
+    return sendJson(res, 200, { scoring });
+  }
+  if (req.method === 'PUT' || req.method === 'POST') {
+    const body = await readJsonBody(req);
+    const toSave = body.scoring || body;
+    await writeFile(scoringPath, yaml.dump(toSave), 'utf8');
+    return sendJson(res, 200, { ok: true, message: 'Scoring configuration updated' });
+  }
+}
+
 async function handleApplications(req, res, url) {
   if (req.method === 'GET') {
     const exportFmt = url.searchParams.get('format');
@@ -567,6 +584,7 @@ const server = createServer(async (req, res) => {
     if (url.pathname === '/api/profile') return await handleProfile(req, res);
     if (url.pathname === '/api/portfolio') return await handlePortfolio(req, res);
     if (url.pathname === '/api/resume') return await handleResume(req, res);
+    if (url.pathname === '/api/scoring') return await handleScoring(req, res);
     if (url.pathname === '/api/applications') return await handleApplications(req, res, url);
     if (url.pathname === '/api/files/download') return await handleDownload(url, res);
 

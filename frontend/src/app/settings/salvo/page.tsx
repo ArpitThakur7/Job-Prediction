@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { salvoClient, SalvoApiError } from "@/lib/salvoClient";
 import SalvoConnectionGuard from "@/components/salvo/SalvoConnectionGuard";
+import ScoringWeightsEditor from "@/components/salvo/ScoringWeightsEditor";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/context/ToastContext";
 
@@ -44,7 +45,7 @@ export default function SalvoSettingsPage() {
     loadData();
   }, []);
 
-  const handleSaveProfile = async () => {
+  const handleSaveProfile = useCallback(async () => {
     setSaving(true);
     setNotice(null);
     try {
@@ -54,10 +55,23 @@ export default function SalvoSettingsPage() {
       setNotice(null);
     } catch (err: any) {
       setNotice(`❌ Error saving: ${err.message}`);
+      addToast({ type: "error", title: "Invalid JSON", message: err.message });
     } finally {
       setSaving(false);
     }
-  };
+  }, [profileText, addToast]);
+
+  // Keyboard shortcut Ctrl+S / Cmd+S
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        handleSaveProfile();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleSaveProfile]);
 
   return (
     <SalvoConnectionGuard>
@@ -134,6 +148,9 @@ export default function SalvoSettingsPage() {
           </span>
         </div>
       </div>
+
+      {/* Visual Dual Scoring Weights & Gating Sliders */}
+      <ScoringWeightsEditor />
 
       {/* Profile Editor */}
       <div

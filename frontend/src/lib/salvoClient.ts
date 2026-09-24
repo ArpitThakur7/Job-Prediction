@@ -66,6 +66,18 @@ export interface DailyLogEntry {
   rejected: number;
 }
 
+export interface ScoringConfig {
+  weights: {
+    relevance: number;
+    prediction: number;
+  };
+  thresholds: {
+    apply_min: number;
+    high_confidence: number;
+    max_per_company?: number;
+  };
+}
+
 export interface TailorResult {
   ok: boolean;
   meta?: {
@@ -364,5 +376,17 @@ export const salvoClient = {
 
   async getProviderHealth() {
     return safeFetch("/api/providers/health");
+  },
+
+  async getScoringConfig(): Promise<{ scoring: ScoringConfig }> {
+    return safeFetch("/api/scoring");
+  },
+
+  async updateScoringConfig(scoring: ScoringConfig) {
+    return safeFetch("/api/scoring", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scoring }),
+    });
   },
 };

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { salvoClient, ApplicationRecord, DailyLogEntry, SalvoApiError } from "@/lib/salvoClient";
 import Card3DTilt from "@/components/3d/Card3DTilt";
 import SalvoConnectionGuard from "@/components/salvo/SalvoConnectionGuard";
+import PipelineFunnel, { FunnelStage } from "@/components/salvo/PipelineFunnel";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/context/ToastContext";
 
@@ -81,17 +82,29 @@ export default function ApplicationsTrackerPage() {
     }
   };
 
-  const applications = (sheets[currentSheet] || []).filter((app) =>
-    search ? app.company.toLowerCase().includes(search.toLowerCase()) ||
-             app.title.toLowerCase().includes(search.toLowerCase())
-           : true
-  );
+  const [selectedStageFilter, setSelectedStageFilter] = useState<string | null>(null);
 
-  // Funnel calculations
-  const countStatus = (s: ApplicationRecord["status"]) =>
-    applications.filter((a) => (a.status || "").toLowerCase() === s).length;
+  const rawApplications = sheets[currentSheet] || [];
+  const totalApps = rawApplications.length;
 
-  const totalApps = applications.length;
+  const funnelStages: FunnelStage[] = STATUS_COLUMNS.map((col) => ({
+    key: col.key,
+    label: col.label,
+    emoji: col.emoji,
+    color: col.color,
+    count: rawApplications.filter((a) => (a.status || "discovered").toLowerCase() === col.key).length,
+  }));
+
+  const applications = rawApplications.filter((app) => {
+    const matchesSearch = search
+      ? app.company.toLowerCase().includes(search.toLowerCase()) ||
+        app.title.toLowerCase().includes(search.toLowerCase())
+      : true;
+    const matchesStage = selectedStageFilter
+      ? (app.status || "discovered").toLowerCase() === selectedStageFilter
+      : true;
+    return matchesSearch && matchesStage;
+  });
 
   return (
     <SalvoConnectionGuard>
@@ -126,7 +139,10 @@ export default function ApplicationsTrackerPage() {
                 Object.keys(sheets).map((name) => (
                   <button
                     key={name}
-                    onClick={() => setCurrentSheet(name)}
+                    onClick={() => {
+                      setCurrentSheet(name);
+                      setSelectedStageFilter(null);
+                    }}
                     className={`px-3 py-1.5 rounded-lg transition-all ${
                       currentSheet === name ? "bg-cyan-500 text-black font-bold" : "text-slate-400 hover:text-white"
                     }`}
@@ -158,40 +174,13 @@ export default function ApplicationsTrackerPage() {
           </div>
         </div>
 
-        {/* 3D Funnel Telemetry + Animated Pipeline */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-          {STATUS_COLUMNS.map((col) => {
-            const count = countStatus(col.key);
-            const pct = totalApps > 0 ? Math.round((count / totalApps) * 100) : 0;
-            return (
-              <Card3DTilt key={col.key} maxDegree={6} scaleOnHover={1.03}>
-                <div
-                  className="p-4 rounded-2xl border backdrop-blur-md shadow-md text-center relative overflow-hidden"
-                  style={{
-                    backgroundColor: currentThemeColors.panelBg || "rgba(15, 23, 42, 0.75)",
-                    borderColor: currentThemeColors.panelBorder || "rgba(255, 255, 255, 0.1)",
-                  }}
-                >
-                  {/* Background fill bar */}
-                  <div
-                    className="absolute bottom-0 left-0 right-0 transition-all duration-700 ease-out opacity-15"
-                    style={{ height: `${Math.max(pct, 4)}%`, backgroundColor: col.color }}
-                  />
-                  <span className="text-base block mb-1">{col.emoji}</span>
-                  <span className="text-[10px] font-mono uppercase tracking-wider block text-slate-400 mb-1">
-                    {col.label}
-                  </span>
-                  <span className="text-2xl font-black font-mono relative" style={{ color: col.color }}>
-                    {count}
-                  </span>
-                  {pct > 0 && (
-                    <span className="block text-[9px] font-mono text-slate-500 mt-0.5">{pct}%</span>
-                  )}
-                </div>
-              </Card3DTilt>
-            );
-          })}
-        </div>
+        {/* Interactive Pipeline Conversion Funnel */}
+        <PipelineFunnel
+          stages={funnelStages}
+          totalTracked={totalApps}
+          activeFilter={selectedStageFilter}
+          onSelectStage={(stage) => setSelectedStageFilter(stage)}
+        />
 
         {/* View Switcher and Search */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-3">
