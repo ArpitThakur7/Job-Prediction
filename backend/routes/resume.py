@@ -243,49 +243,6 @@ async def score_resume(
     }
 
 
-@router.put("/resume/{resume_id}/fields")
-@router.put("/api/resume/{resume_id}/fields")
-async def override_resume_fields(
-    resume_id: str,
-    payload: FieldsOverrideRequest,
-) -> Dict[str, Any]:
-    """
-    Recruiter manual override of extracted candidate fields.
-    """
-    resumes_col = get_collection("resumes")
-    doc = resumes_col.find_one({"resume_id": resume_id})
-    if not doc:
-        raise HTTPException(status_code=404, detail="Resume not found")
-
-    structured = doc.get("structured", {})
-    contact = structured.get("contact", {})
-    skills = structured.get("skills", {})
-
-    if payload.name is not None:
-        contact["name"] = payload.name
-    if payload.email is not None:
-        contact["email"] = payload.email
-    if payload.phone is not None:
-        contact["phone"] = payload.phone
-    if payload.summary is not None:
-        structured["summary"] = payload.summary
-    if payload.technical_skills is not None:
-        skills["technical"] = payload.technical_skills
-    if payload.soft_skills is not None:
-        skills["soft"] = payload.soft_skills
-    if payload.tools is not None:
-        skills["tools"] = payload.tools
-
-    structured["contact"] = contact
-    structured["skills"] = skills
-
-    resumes_col.update_one(
-        {"resume_id": resume_id},
-        {"$set": {"structured": structured, "updated_at": datetime.utcnow()}}
-    )
-    return {"success": True, "resume_id": resume_id, "structured": structured}
-
-
 @router.post("/resume/{resume_id}/gap-analysis")
 @router.post("/api/resume/{resume_id}/gap-analysis")
 async def resume_gap_analysis(

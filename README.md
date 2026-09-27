@@ -125,6 +125,24 @@ System health monitor for MongoDB, Redis, Pinecone, and Groq, coupled with live 
 
 ---
 
+### 8. 📊 Application Tracker & Kanban Pipeline
+End-to-end recruitment tracking synced with `data/applications.xlsx` as single source of truth. Features interactive conversion funnel, multi-stage Kanban (Discovered, Prepared, Applied, Interviewing, Offer, Rejected), batch Excel export, and non-destructive merges.
+![Application Tracker & Pipeline](docs/screenshots/08_applications_tracker.png)
+
+---
+
+### 9. 🛡️ Truth Bank & Truth-Bounded Resume Hub
+Live split-screen markdown editor and real-time preview for canonical candidate facts (`resume.md` and `portfolio.yaml`). Enforces strict anti-hallucination boundaries on all automated resume tailoring.
+![Truth Bank & Resume Hub](docs/screenshots/09_resume_tailor.png)
+
+---
+
+### 10. ⚡ Salvo Engine & Visual Scoring Weights Editor
+Companion engine diagnostics with live zero-auth board provider telemetry, interactive weight sliders for semantic match vs. keyword overlap, and truth guard calibration.
+![Salvo Engine & Scoring Weights](docs/screenshots/10_salvo_engine_settings.png)
+
+---
+
 ## 💻 Technology Stack
 
 | Layer | Technologies |

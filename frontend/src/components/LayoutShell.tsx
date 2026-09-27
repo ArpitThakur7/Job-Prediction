@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useApp } from "@/context/AppContext";
@@ -11,6 +11,7 @@ import ThemeSwitcher from "@/components/3d/ThemeSwitcher";
 export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
   const { infraStatus, user, logout, currentThemeColors } = useApp();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = [
     { name: "Dashboard", href: "/", icon: "🏠" },
@@ -24,6 +25,26 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
     { name: "Account", href: "/account", icon: "🔐" },
     { name: "Settings", href: "/settings", icon: "⚙️" },
   ];
+
+  const mobilePrimaryNav = [
+    { name: "Home", href: "/", icon: "🏠" },
+    { name: "Salvo", href: "/jobs", icon: "⚡" },
+    { name: "Tracker", href: "/applications", icon: "📊" },
+    { name: "Resume", href: "/resume", icon: "📝" },
+  ];
+
+  const secondaryNav = [
+    { name: "Job Board", href: "/job-board", icon: "💼", desc: "AI semantic job matching" },
+    { name: "Analyzer", href: "/analyzer", icon: "📄", desc: "ATS skill gap scoring" },
+    { name: "Parser", href: "/parser", icon: "🔍", desc: "Requirement extraction" },
+    { name: "Coach", href: "/coach", icon: "🤖", desc: "RAG career assistant" },
+    { name: "Account", href: "/account", icon: "🔐", desc: "Profile & credentials" },
+    { name: "Settings", href: "/settings", icon: "⚙️", desc: "System diagnostics" },
+  ];
+
+  const isSecondaryActive = secondaryNav.some(
+    (item) => pathname === item.href || pathname.startsWith(item.href + "/")
+  );
 
   const getPageTitle = () => {
     if (pathname.startsWith("/jobs/")) return "Posting Details & Fit Breakdown";
@@ -279,23 +300,122 @@ export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children 
           height: "calc(58px + env(safe-area-inset-bottom, 0px))",
         }}
       >
-        {navItems.map((item) => {
+        {mobilePrimaryNav.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center gap-0.5 text-slate-500 hover:text-slate-900 transition-all text-[9.5px] font-heading px-1 py-1 min-w-[40px] touch-manipulation ${
+              className={`flex flex-col items-center justify-center gap-0.5 text-slate-500 hover:text-slate-900 transition-all text-[10px] font-heading px-2 py-1 min-w-[54px] touch-manipulation ${
                 isActive ? "font-bold scale-105" : "opacity-80"
               }`}
               style={isActive ? { color: currentThemeColors.primary, opacity: 1 } : {}}
             >
               <span className="text-lg leading-none">{item.icon}</span>
-              <span className="truncate max-w-[48px] leading-tight">{item.name}</span>
+              <span className="truncate max-w-[58px] leading-tight">{item.name}</span>
             </Link>
           );
         })}
+
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className={`flex flex-col items-center justify-center gap-0.5 text-slate-500 hover:text-slate-900 transition-all text-[10px] font-heading px-2 py-1 min-w-[54px] touch-manipulation relative ${
+            isSecondaryActive || mobileMenuOpen ? "font-bold scale-105" : "opacity-80"
+          }`}
+          style={isSecondaryActive || mobileMenuOpen ? { color: currentThemeColors.primary, opacity: 1 } : {}}
+          aria-label="More navigation items"
+        >
+          <span className="text-lg leading-none">⋯</span>
+          <span className="truncate max-w-[58px] leading-tight">More</span>
+          {isSecondaryActive && !mobileMenuOpen && (
+            <span
+              className="absolute top-1 right-2 w-1.5 h-1.5 rounded-full"
+              style={{ backgroundColor: currentThemeColors.primary }}
+            />
+          )}
+        </button>
       </nav>
+
+      {/* Mobile "More" Drawer Modal */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-50 min-[821px]:hidden flex flex-col justify-end bg-black/40 backdrop-blur-xs animate-fade-in"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          <div
+            className="w-full rounded-t-3xl p-5 pb-8 shadow-2xl space-y-4 max-h-[82vh] overflow-y-auto"
+            style={{
+              backgroundColor: "var(--theme-sidebar-bg, rgba(255, 255, 255, 0.98))",
+              borderTop: "1px solid var(--theme-panel-border, rgba(226, 232, 240, 0.9))",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 dark:border-white/10">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">⚡</span>
+                <span className="font-heading font-black text-slate-900 dark:text-white text-base">
+                  Platform Features
+                </span>
+              </div>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              {secondaryNav.map((item) => {
+                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-3 rounded-2xl border transition-all flex flex-col gap-1"
+                    style={{
+                      backgroundColor: isActive ? `${currentThemeColors.primary}12` : "var(--theme-badge-bg, rgba(241, 245, 249, 0.7))",
+                      borderColor: isActive ? currentThemeColors.primary : "var(--theme-panel-border, rgba(226, 232, 240, 0.8))",
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{item.icon}</span>
+                      <span className="font-bold text-sm text-slate-900 dark:text-white">{item.name}</span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 line-clamp-1">{item.desc}</span>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Quick Mobile Theme & Account info */}
+            <div className="pt-2 border-t border-slate-200/80 dark:border-white/10 flex items-center justify-between">
+              <ThemeSwitcher />
+              {user ? (
+                <button
+                  onClick={() => {
+                    logout();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-600 font-bold text-xs"
+                >
+                  Sign Out
+                </button>
+              ) : (
+                <Link
+                  href="/account"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="px-3.5 py-1.5 rounded-lg text-white font-bold text-xs shadow-xs"
+                  style={{ backgroundColor: currentThemeColors.primary }}
+                >
+                  Sign In
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 3. Main Page Context */}
       <div className="flex-1 flex flex-col min-w-0 pb-24 sm:pb-28 min-[821px]:pb-6 z-10">

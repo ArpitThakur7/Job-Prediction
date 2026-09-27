@@ -1,5 +1,8 @@
+import secrets
 from pathlib import Path
+from typing import List
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,21 +37,30 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
 
-    # Apache Kafka Event Streaming Settings
+    # Allowed CORS Origins
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
+
+    # Apache Kafka Event Streaming Settings (disabled by default in local dev)
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
     KAFKA_TOPIC_RESUME_EVENTS: str = "job_ai_resume_events"
     KAFKA_TOPIC_MATCH_EVENTS: str = "job_ai_match_events"
     KAFKA_TOPIC_JOB_EVENTS: str = "job_ai_job_events"
-    KAFKA_ENABLED: bool = True
+    KAFKA_ENABLED: bool = False
 
-    # Apache Spark Distributed Cluster Settings
+    # Apache Spark Distributed Cluster Settings (disabled by default in local dev)
     SPARK_MASTER_URL: str = "spark://localhost:7077"
     SPARK_APP_NAME: str = "JOB-AI-Spark-Engine"
-    SPARK_ENABLED: bool = True
+    SPARK_ENABLED: bool = False
 
-    # ⚠️ WARNING: Replace this with a random secret for production.
-    # Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
-    SECRET_KEY: str = "supersecretkey"
+    # Cryptographically secure secret key generated at runtime if not provided in .env
+    SECRET_KEY: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
     DEBUG: bool = True
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60

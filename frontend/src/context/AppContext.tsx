@@ -231,9 +231,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setResumeIdState(localStorage.getItem("resumeId"));
       setGroqApiState(localStorage.getItem("groqApiKey") || "");
       setPineconeApiState(localStorage.getItem("pineconeApiKey") || "");
-      setOpenaiApiKey(localStorage.getItem("openaiApiKey") || "");
-      setAnthropicApiKey(localStorage.getItem("anthropicApiKey") || "");
-      setGeminiApiKey(localStorage.getItem("geminiApiKey") || "");
+      setOpenaiApiState(localStorage.getItem("openaiApiKey") || "");
+      setAnthropicApiState(localStorage.getItem("anthropicApiKey") || "");
+      setGeminiApiState(localStorage.getItem("geminiApiKey") || "");
       setOpenrouterApiState(localStorage.getItem("openrouterApiKey") || "");
       setPrimaryProviderState(localStorage.getItem("primaryProvider") || "groq");
       setThemeState((localStorage.getItem("theme") as ThemeType) || "luminary");

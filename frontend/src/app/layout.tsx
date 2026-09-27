@@ -15,8 +15,29 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className="min-h-full bg-gradient-to-b from-[#FAFBFF] to-[#EEF2FF] text-slate-900">
+    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var theme = localStorage.getItem("theme") || "luminary";
+                  var darkThemes = ["cyberpunk", "gold", "quantum", "aurora"];
+                  if (darkThemes.indexOf(theme) !== -1) {
+                    document.documentElement.classList.add("dark");
+                    document.documentElement.style.colorScheme = "dark";
+                  } else {
+                    document.documentElement.classList.remove("dark");
+                    document.documentElement.style.colorScheme = "light";
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
+      <body className="min-h-full antialiased transition-colors duration-300">
         <AppProvider>
           <ToastProvider>
             <LayoutShell>{children}</LayoutShell>

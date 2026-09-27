@@ -230,7 +230,13 @@ async def reset_password(payload: ResetPasswordRequest) -> Token:
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No account registered with this email.")
         new_hash = _create_password_hash(payload.new_password)
-        users_col.update_one({"_id": user["_id"]}, {"$set": {"hashed_password": new_hash}})
+        if users_col is not None and "_id" in user:
+            users_col.update_one({"_id": user["_id"]}, {"$set": {"hashed_password": new_hash}})
+        else:
+            clean_email = payload.email.strip().lower()
+            if clean_email in _IN_MEMORY_USERS:
+                _IN_MEMORY_USERS[clean_email]["hashed_password"] = new_hash
+        user["hashed_password"] = new_hash
         return _build_token_response(user)
     except HTTPException:
         raise

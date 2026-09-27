@@ -227,9 +227,13 @@ async def get_job(job_id: str) -> JobResponse:
 
 
 @router.delete("/jobs/{job_id}")
-async def delete_job(job_id: str) -> JSONResponse:
+async def delete_job(
+    job_id: str,
+    current_user: Dict[str, Any] = Depends(require_role(["recruiter", "admin"])),
+) -> JSONResponse:
     """
     Delete job from MongoDB and Pinecone vector store.
+    Requires authenticated user with 'recruiter' or 'admin' role.
     """
     from backend.services.vector_store import delete_vector
 
