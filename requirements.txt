@@ -53,7 +53,7 @@ python-docx>=1.1.0
 
 # ── LLM / RAG ──────────────────────────────────────────────────────────────────
 langchain>=0.3.20
-langchain-core>=0.3.45
+langchain-core>=1.7.0
 langchain-community>=0.3.15
 langchain-groq>=0.2.2
 
