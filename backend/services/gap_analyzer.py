@@ -1,5 +1,5 @@
 """
-Phase 4 — Gap Analysis & Recommendations - JOB-AI Platform
+Phase 4 — Gap Analysis & Recommendations - Fletch
 Diffs candidate skills against target job description, identifies adjacent/transferable skills,
 and generates specific bullet rewrite suggestions and learning tracks.
 """

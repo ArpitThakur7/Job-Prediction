@@ -1,5 +1,5 @@
 """
-Phase 1 — Robust Text Extractor - JOB-AI Platform
+Phase 1 — Robust Text Extractor - Fletch
 Extracts raw text preserving sections, detects scanned PDFs, normalizes whitespace & noise, and computes SHA256 hashes.
 """
 

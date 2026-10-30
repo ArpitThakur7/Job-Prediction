@@ -55,3 +55,11 @@ TOD0.md
 
 # Tests
 tests/
+# Personal data and local databases: never bake into an image
+data/resume/
+data/mongo_db/
+data/generated/
+data/applications.xlsx
+data/pipeline*.json
+data/feedback.jsonl
+*.pdf

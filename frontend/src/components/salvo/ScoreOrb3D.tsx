@@ -2,6 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
+import { fitColor } from "@/lib/jobScore";
 
 interface ScoreOrbProps {
   score: number;
@@ -20,13 +21,9 @@ export const ScoreOrb3D: React.FC<ScoreOrbProps> = ({
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (score / 100) * circumference;
 
-  const getColor = (s: number) => {
-    if (s >= 80) return { stroke: "#10b981", glow: "rgba(16, 185, 129, 0.4)", text: "#10b981" };
-    if (s >= 65) return { stroke: "#00f3ff", glow: "rgba(0, 243, 255, 0.4)", text: "#00f3ff" };
-    return { stroke: "#f59e0b", glow: "rgba(245, 158, 11, 0.4)", text: "#f59e0b" };
-  };
-
-  const { stroke, glow, text } = getColor(score);
+  const stroke = fitColor(score);
+  const glow = `${stroke}66`;
+  const text = stroke;
 
   return (
     <div className="relative flex flex-col items-center justify-center" style={{ width: size, height: size }}>
@@ -35,7 +32,7 @@ export const ScoreOrb3D: React.FC<ScoreOrbProps> = ({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="rgba(255, 255, 255, 0.08)"
+          stroke="rgba(128, 128, 160, 0.16)"
           strokeWidth="6"
           fill="transparent"
         />
@@ -55,11 +52,11 @@ export const ScoreOrb3D: React.FC<ScoreOrbProps> = ({
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-        <span className="font-mono font-black text-sm tracking-tight" style={{ color: text }}>
+        <span className="font-display font-extrabold text-base leading-none tabular" style={{ color: text }}>
           {score}
         </span>
         {label && (
-          <span className="text-[8px] font-mono uppercase tracking-wider text-slate-400 opacity-80">
+          <span className="text-[10px] font-medium opacity-60">
             {label}
           </span>
         )}

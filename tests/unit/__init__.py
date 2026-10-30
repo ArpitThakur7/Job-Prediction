@@ -1,1 +1,1 @@
-"""Unit tests for JOB-AI-PLATFORM."""
+"""Unit tests for Fletch."""

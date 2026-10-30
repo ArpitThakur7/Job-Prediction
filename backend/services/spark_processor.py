@@ -1,5 +1,5 @@
 """
-Apache Spark Processor Integration Service - JOB-AI Platform
+Apache Spark Processor Integration Service - Fletch
 Serves PySpark analytics, large-scale feature extraction, and bulk dataset matching to FastAPI services.
 """
 

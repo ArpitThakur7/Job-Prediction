@@ -1,58 +1,81 @@
+// Captures the README screenshots from a running local stack.
+//   1. Start backend, engine and frontend (run.bat, or the three dev servers).
+//   2. node engine/capture_screenshots.mjs
+// Images are written to docs/screenshots/.
+
 import { chromium } from 'playwright';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import fs from 'fs';
+import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const outputDir = path.resolve(__dirname, '../docs/screenshots');
+const outputDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../docs/screenshots');
+const BASE = process.env.SCREENSHOT_BASE_URL || 'http://localhost:3000';
+fs.mkdirSync(outputDir, { recursive: true });
 
-if (!fs.existsSync(outputDir)) {
-  fs.mkdirSync(outputDir, { recursive: true });
-}
+const desktop = { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1.5 };
+const phone = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true };
 
-const pagesToCapture = [
-  { name: '01_dashboard.png', url: 'http://localhost:3000/' },
-  { name: '02_job_board.png', url: 'http://localhost:3000/job-board' },
-  { name: '03_resume_analyzer.png', url: 'http://localhost:3000/analyzer' },
-  { name: '04_job_parser.png', url: 'http://localhost:3000/parser' },
-  { name: '05_career_coach.png', url: 'http://localhost:3000/coach' },
-  { name: '06_account_security.png', url: 'http://localhost:3000/account' },
-  { name: '07_platform_settings.png', url: 'http://localhost:3000/settings' },
-  { name: '08_applications_tracker.png', url: 'http://localhost:3000/applications' },
-  { name: '09_resume_tailor.png', url: 'http://localhost:3000/resume' },
-  { name: '10_salvo_engine_settings.png', url: 'http://localhost:3000/settings/salvo' },
+const shots = [
+  { name: '01_home.png', path: '/', wait: 6000 },
+  { name: '02_job_feed.png', path: '/jobs', wait: 4000 },
+  {
+    name: '03_filters.png',
+    path: '/jobs',
+    wait: 4000,
+    async act(page) {
+      await page.getByLabel('Search jobs').fill('python');
+      await page.getByLabel('Minimum fit score').fill('50');
+      await page.getByRole('switch', { name: 'Remote only' }).check({ force: true });
+      await page.waitForTimeout(800);
+    },
+  },
+  {
+    name: '04_job_preview.png',
+    path: '/jobs',
+    wait: 4000,
+    async act(page) {
+      await page.locator('article').first().click();
+      await page.waitForTimeout(1200);
+    },
+  },
+  { name: '05_dark_theme.png', path: '/jobs', wait: 4000, theme: 'aurora' },
+  // Tracker, Resume studio and Resume check join the gallery once they get the new design.
+  { name: '06_mobile_home.png', path: '/', wait: 6000, device: phone },
+  {
+    name: '07_mobile_filters.png',
+    path: '/jobs',
+    wait: 4000,
+    device: phone,
+    async act(page) {
+      await page.getByRole('button', { name: /^Filters/ }).click();
+      await page.waitForTimeout(800);
+    },
+  },
 ];
 
-async function main() {
-  console.log('Launching browser...');
-  const browser = await chromium.launch({
-    headless: true,
-  });
-
-  const context = await browser.newContext({
-    viewport: { width: 1440, height: 920 },
-    deviceScaleFactor: 1.5,
-  });
-
-  for (const item of pagesToCapture) {
+const browser = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+let failed = 0;
+for (const shot of shots) {
+  const context = await browser.newContext({ ...(shot.device || desktop), colorScheme: 'light' });
+  await context.addInitScript((theme) => {
     try {
-      console.log(`Navigating to ${item.url} for ${item.name}...`);
-      const page = await context.newPage();
-      await page.goto(item.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-      // Wait for any animations, charts, or WebGL to initialize
-      await page.waitForTimeout(3500);
-      const filePath = path.join(outputDir, item.name);
-      await page.screenshot({ path: filePath, fullPage: false });
-      console.log(`Saved screenshot to ${filePath}`);
-      await page.close();
-    } catch (err) {
-      console.error(`Error capturing ${item.name}:`, err);
-    }
+      localStorage.setItem('theme', theme);
+    } catch {}
+  }, shot.theme || 'luminary');
+  const page = await context.newPage();
+  try {
+    await page.goto(BASE + shot.path, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForTimeout(shot.wait);
+    if (shot.act) await shot.act(page);
+    // Hide the Next.js dev indicator so it doesn't appear in published images.
+    await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
+    await page.screenshot({ path: path.join(outputDir, shot.name) });
+    console.log('saved', shot.name);
+  } catch (err) {
+    failed++;
+    console.error('failed', shot.name, err.message.split('\n')[0]);
   }
-
-  await browser.close();
-  console.log('All screenshots captured successfully!');
+  await context.close();
 }
-
-main();
+await browser.close();
+process.exit(failed ? 1 : 0);

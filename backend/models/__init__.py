@@ -1,3 +1,3 @@
 """
-Pydantic data models for JOB-AI-PLATFORM.
+Pydantic data models for Fletch.
 """

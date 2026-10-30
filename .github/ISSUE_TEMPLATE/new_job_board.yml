@@ -1,0 +1,25 @@
+name: Add a job board
+description: Request (or offer to build) support for a new job board or ATS
+labels: [job-board, good first issue]
+body:
+  - type: input
+    id: board
+    attributes:
+      label: Board or ATS name
+      placeholder: Workable, SmartRecruiters, Wellfound...
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Example listings URL
+      description: A public page or API that lists jobs without logging in.
+    validations:
+      required: true
+  - type: checkboxes
+    id: build
+    attributes:
+      label: Contributing
+      description: See docs/ADDING_A_PROVIDER.md for the provider template.
+      options:
+        - label: I'd like to build this provider

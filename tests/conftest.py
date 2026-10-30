@@ -1,5 +1,5 @@
 """
-Pytest configuration and shared fixtures for JOB-AI-PLATFORM tests.
+Pytest configuration and shared fixtures for Fletch tests.
 
 Run with: pytest
 """

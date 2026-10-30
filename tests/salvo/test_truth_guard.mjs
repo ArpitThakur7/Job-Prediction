@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { verifyAndSanitizeResume, generateResumeDiff } from '../../engine/lib/truth-guard.mjs';
+import { verifyAndSanitizeResume, verifyAndSanitizeCoverLetter, generateResumeDiff } from '../../engine/lib/truth-guard.mjs';
 
 const mockFactBank = {
   masterText: 'Experienced with React, Node.js, and PostgreSQL. Worked at ACME Corp. Scaled system throughput by 50%.',
@@ -59,6 +59,37 @@ test('truth-guard flags unverified employers and strips hallucinated metrics', (
   assert.ok(result.violations.length >= 2);
   // Fake project stripped
   assert.equal(result.resume.projects.length, 0);
-  // Hallucinated bullet stripped
-  assert.equal(result.resume.experience[0].bullets.length, 0);
+  // Unverified employer removed entirely, bullets and all
+  assert.equal(result.resume.experience.length, 0);
+});
+
+test('truth-guard keeps grounded bullets under a real employer while dropping invented metrics', () => {
+  const result = verifyAndSanitizeResume(
+    {
+      experience: [{ company: 'ACME Corp', bullets: ['Scaled throughput by 50%.', 'Cut costs by 73%.'] }],
+    },
+    mockFactBank
+  );
+  assert.deepEqual(result.resume.experience[0].bullets, ['Scaled throughput by 50%.']);
+  assert.ok(result.violations.some((v) => v.includes('73%')));
+});
+
+test('truth-guard checks the summary and skills', () => {
+  const result = verifyAndSanitizeResume(
+    {
+      summary: 'Full-stack engineer working in React and Node.js. Led a team of 40 engineers.',
+      skills: { languages: ['React', 'PostgreSQL', 'Kubernetes'] },
+    },
+    mockFactBank
+  );
+  assert.equal(result.resume.summary, 'Full-stack engineer working in React and Node.js.');
+  assert.deepEqual(result.resume.skills.languages, ['React', 'PostgreSQL']);
+  assert.ok(result.violations.some((v) => v.includes('Kubernetes')));
+});
+
+test('cover letter: invented numbers removed, numbers quoted from the job post kept', () => {
+  const letter = 'I scaled throughput by 50%.\n\nI led 12 launches. Your team of 200 engineers inspires me.';
+  const result = verifyAndSanitizeCoverLetter(letter, mockFactBank, { jobText: 'Join our 200-person team.' });
+  assert.equal(result.verified, false);
+  assert.equal(result.text, 'I scaled throughput by 50%.\n\nYour team of 200 engineers inspires me.');
 });

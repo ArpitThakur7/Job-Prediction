@@ -1,1 +1,1 @@
-"""Integration tests for JOB-AI-PLATFORM."""
+"""Integration tests for Fletch."""

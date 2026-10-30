@@ -24,6 +24,7 @@ export default function Account() {
   // Reset Password Form States
   const [resetEmail, setResetEmail] = useState("");
   const [resetPassword, setResetPassword] = useState("");
+  const [resetCurrent, setResetCurrent] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -157,25 +158,15 @@ export default function Account() {
     setLoading(true);
 
     try {
-      let res = await fetch(`${apiBase}/auth/reset-password`, {
+      const res = await fetch(`${apiBase}/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: resetEmail,
+          current_password: resetCurrent,
           new_password: resetPassword,
         }),
       });
-
-      if (res.status === 404) {
-        res = await fetch(`${apiBase}/reset-password`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: resetEmail,
-            new_password: resetPassword,
-          }),
-        });
-      }
 
       if (res.ok) {
         const data = await res.json();
@@ -190,7 +181,8 @@ export default function Account() {
         if (typeof window !== "undefined") {
           localStorage.setItem("remember_email", resetEmail);
         }
-        setSuccessMsg("Password reset successfully! Logged in as " + resetEmail);
+        setResetCurrent("");
+        setSuccessMsg("Password changed. Signed in as " + resetEmail);
       } else {
         const errData = await res.json().catch(() => ({}));
         setErrorMsg(formatErrorMessage(errData.detail, "Password reset failed."));
@@ -226,7 +218,7 @@ export default function Account() {
               </span>
               <h2 className="text-2xl font-black font-heading tracking-tight">
                 {authTab === "login"
-                  ? "Sign In to JOB-AI Platform"
+                  ? "Sign in to Fletch"
                   : authTab === "register"
                   ? "Create Candidate Account"
                   : "Reset Account Password"}
@@ -267,7 +259,7 @@ export default function Account() {
                   authTab === "reset" ? "bg-[#4F46E5] text-white shadow-md" : "text-[#8b8fa8] hover:text-white"
                 }`}
               >
-                Reset Password
+                Change Password
               </button>
             </div>
 
@@ -278,26 +270,13 @@ export default function Account() {
                   <button
                     type="button"
                     onClick={() => {
-                      setResetEmail(regEmail || loginEmail);
-                      setAuthTab("reset");
+                      setLoginEmail(regEmail || loginEmail);
+                      setAuthTab("login");
                       setErrorMsg(null);
                     }}
                     className="mt-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md text-[10px] font-bold cursor-pointer transition-all"
                   >
-                    🔑 Reset password for this account →
-                  </button>
-                )}
-                {errorMsg.includes("Invalid email or password") && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setResetEmail(loginEmail);
-                      setAuthTab("reset");
-                      setErrorMsg(null);
-                    }}
-                    className="mt-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md text-[10px] font-bold cursor-pointer transition-all"
-                  >
-                    🔑 Forgot password? Reset Password →
+                    Sign in instead
                   </button>
                 )}
               </div>
@@ -320,7 +299,7 @@ export default function Account() {
                     type="email"
                     required
                     autoComplete="username"
-                    placeholder="cnlarpit7@gmail.com"
+                    placeholder="you@example.com"
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     className="w-full bg-[#0d1121] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:border-[#00ff88] focus:outline-none"
@@ -330,13 +309,6 @@ export default function Account() {
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
                     <label htmlFor="login-password" className="text-[11px] font-bold text-[#8b8fa8] uppercase">Password</label>
-                    <button
-                      type="button"
-                      onClick={() => { setResetEmail(loginEmail); setAuthTab("reset"); setErrorMsg(null); }}
-                      className="text-[10px] text-indigo-400 hover:underline cursor-pointer"
-                    >
-                      Forgot password?
-                    </button>
                   </div>
                   <input
                     id="login-password"
@@ -387,7 +359,7 @@ export default function Account() {
                     type="email"
                     required
                     autoComplete="email"
-                    placeholder="cnlarpit7@gmail.com"
+                    placeholder="you@example.com"
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
                     className="w-full bg-[#0d1121] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:border-[#00ff88] focus:outline-none"
@@ -443,9 +415,24 @@ export default function Account() {
                     type="email"
                     required
                     autoComplete="email"
-                    placeholder="cnlarpit7@gmail.com"
+                    placeholder="you@example.com"
                     value={resetEmail}
                     onChange={(e) => setResetEmail(e.target.value)}
+                    className="w-full bg-[#0d1121] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:border-[#00ff88] focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="reset-current" className="text-[11px] font-bold text-[#8b8fa8] uppercase">Current Password</label>
+                  <input
+                    id="reset-current"
+                    name="current-password"
+                    type="password"
+                    required
+                    autoComplete="current-password"
+                    placeholder="Your current password"
+                    value={resetCurrent}
+                    onChange={(e) => setResetCurrent(e.target.value)}
                     className="w-full bg-[#0d1121] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:border-[#00ff88] focus:outline-none"
                   />
                 </div>
@@ -471,7 +458,7 @@ export default function Account() {
                   disabled={loading}
                   className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#6c63ff] to-[#00ff88] text-black font-extrabold text-xs tracking-wider cursor-pointer shadow-lg hover:scale-[1.01] transition-all disabled:opacity-50"
                 >
-                  {loading ? "Updating Password..." : "Update Password & Sign In →"}
+                  {loading ? "Changing password..." : "Change password"}
                 </button>
               </form>
             )}

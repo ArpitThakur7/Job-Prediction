@@ -1,5 +1,5 @@
 """
-Phase 3 — Enterprise ATS Scoring Engine - JOB-AI Platform
+Phase 3 — Enterprise ATS Scoring Engine - Fletch
 Calculates a 0–100 ATS compatibility score incorporating industry best practices:
 1. Recency & Duration Skill Boosting (+15% for active roles <3 yrs, +10%/yr duration multiplier).
 2. Configurable Role-Based Category Weight Matrices (Technical, Executive, General).
@@ -67,14 +67,34 @@ class ATSScoreBreakdown(BaseModel):
     recency_boost: float = 0.0        # Bonus points added for recent skill usage
 
 
+class MLMatchResult(BaseModel):
+    match_probability: float = 0.0
+    predicted_match: int = 0
+    verdict: str = "NO MATCH"
+    confidence: str = "Medium"
+    engine: str = "xgboost"
+    threshold: float = 0.2651
+    features: Dict[str, Any] = Field(default_factory=dict)
+
+
+class BulletSuggestion(BaseModel):
+    original: str = ""
+    improved: str = ""
+    reason: str = ""
+
+
 class ATSScoreResult(BaseModel):
     overall_score: int = 0
+    composite_score: int = 0
+    grade_tier: str = "Strong"  # Elite, Strong, Needs Polish, Rejection Risk
     parse_confidence_score: float = 100.0
     role_type: str = "technical"
     breakdown: ATSScoreBreakdown = Field(default_factory=ATSScoreBreakdown)
     issues: List[ATSIssue] = Field(default_factory=list)
     matched_keywords: List[str] = Field(default_factory=list)
     missing_keywords: List[str] = Field(default_factory=list)
+    ml_prediction: Optional[MLMatchResult] = None
+    bullet_suggestions: List[BulletSuggestion] = Field(default_factory=list)
 
 
 def _cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
@@ -134,10 +154,12 @@ def score_resume_ats(
     job_description: Optional[str] = None,
     job_required_skills: Optional[List[str]] = None,
     role_type: str = "technical",
+    job_data: Optional[Dict[str, Any]] = None,
+    include_ml_prediction: bool = True,
 ) -> ATSScoreResult:
     """
     Calculate ATS compatibility score (0-100) with recency boosting, role-based category matrix,
-    and parse confidence metric.
+    parse confidence metric, and XGBoost 15-feature ML predictive match scoring.
     """
     issues: List[ATSIssue] = []
     role_type = role_type.lower() if role_type.lower() in ROLE_WEIGHT_MATRICES else "technical"
@@ -436,8 +458,130 @@ def score_resume_ats(
     overall = int(round(weighted_total))
     overall = max(0, min(100, overall))
 
+    # -------------------------------------------------------------------------
+    # 6. ML PREDICTIVE FIT (XGBoost 15-Feature Classifier)
+    # -------------------------------------------------------------------------
+    ml_result: Optional[MLMatchResult] = None
+    composite_score = overall
+
+    if include_ml_prediction:
+        try:
+            from backend.services.matcher import _extract_pair_features, _predict_pair_score
+
+            all_skills = list(set(
+                [s.strip() for s in structured.skills.technical + structured.skills.soft + structured.skills.tools if s.strip()]
+            ))
+            exp_years = 0.0
+            for exp in structured.experience:
+                exp_years += _extract_years_from_date_range(exp.start_date, exp.end_date)
+
+            edu_degree = structured.education[0].degree if structured.education else "Bachelors"
+            resume_dict = {
+                "resume_id": "temp_scoring_candidate",
+                "name": structured.contact.name or "Candidate",
+                "email": structured.contact.email or "",
+                "skills": all_skills,
+                "experience_years": exp_years,
+                "education": edu_degree,
+                "category": "INFORMATION-TECHNOLOGY" if role_type == "technical" else "General",
+                "raw_text": raw_text,
+                "summary": structured.summary,
+            }
+
+            if job_data:
+                target_job = job_data
+            elif job_required_skills or job_description:
+                target_job = {
+                    "title": "Software Engineer",
+                    "category": "INFORMATION-TECHNOLOGY" if role_type == "technical" else "General",
+                    "required_skills": job_required_skills or ["Python", "FastAPI", "React", "Docker", "SQL", "Git"],
+                    "experience_years": 1.5,
+                    "location": "Remote",
+                    "description": job_description or "Software Engineer responsible for modern scalable services.",
+                }
+            else:
+                target_job = {
+                    "title": "Software Engineer",
+                    "category": "INFORMATION-TECHNOLOGY",
+                    "required_skills": ["Python", "FastAPI", "React", "Docker", "SQL", "Git", "REST APIs", "CI/CD"],
+                    "experience_years": 1.5,
+                    "location": "Remote",
+                    "description": "Software Engineer developing scalable web microservices, REST APIs, database queries, and CI/CD pipelines.",
+                }
+
+            features = _extract_pair_features(resume_dict, target_job, semantic_sim=0.75 if (job_description or not job_required_skills) else 0.60)
+            pred = _predict_pair_score(features)
+
+            ml_result = MLMatchResult(
+                match_probability=round(pred["match_probability"], 4),
+                predicted_match=pred["predicted_match"],
+                verdict=pred["verdict"],
+                confidence=pred["confidence"],
+                engine=pred.get("engine", "xgboost"),
+                threshold=0.2651,
+                features=features,
+            )
+
+            ml_prob_pct = pred["match_probability"] * 100.0
+            if job_data or job_required_skills:
+                kw_ratio = (len(matched_kw) / max(len(job_required_skills or [1]), 1)) * 100.0
+                composite = int(round(0.35 * overall + 0.45 * ml_prob_pct + 0.20 * kw_ratio))
+            else:
+                composite = int(round(0.55 * overall + 0.45 * ml_prob_pct))
+
+            composite_score = max(0, min(100, composite))
+        except Exception as e:
+            logger.warning("ML prediction failed during ATS scoring: %s. Using structural score.", e)
+            composite_score = overall
+
+    # Determine Grade Tier
+    if composite_score >= 90:
+        grade_tier = "Elite"
+    elif composite_score >= 75:
+        grade_tier = "Strong"
+    elif composite_score >= 60:
+        grade_tier = "Needs Polish"
+    else:
+        grade_tier = "Rejection Risk"
+
+    # -------------------------------------------------------------------------
+    # 7. ACTIONABLE BULLET SUGGESTIONS
+    # -------------------------------------------------------------------------
+    bullet_suggestions: List[BulletSuggestion] = []
+    for exp in structured.experience:
+        for b in exp.bullets:
+            clean_b = b.strip()
+            if not clean_b:
+                continue
+            has_metric = bool(re.search(r"(\d+%\s*|\$\s*\d+|\b\d{2,}\b|\b\d+\.\d+\b)", clean_b))
+            first_w = re.sub(r"[^a-z]", "", clean_b.split()[0].lower()) if clean_b.split() else ""
+            has_verb = first_w in ACTION_VERBS or first_w.endswith("ed")
+
+            if not has_metric and not has_verb:
+                bullet_suggestions.append(BulletSuggestion(
+                    original=clean_b,
+                    improved=f"Architected and deployed {clean_b.lower().replace('worked on', '').replace('responsible for', '').strip()}, improving system performance by 35% and cutting latency by 40ms.",
+                    reason="Bullet lacks an active power verb and quantifiable business outcome metrics."
+                ))
+            elif not has_metric:
+                bullet_suggestions.append(BulletSuggestion(
+                    original=clean_b,
+                    improved=f"{clean_b} — resulting in a 28% efficiency boost across distributed workflows.",
+                    reason="Add measurable metrics (percentages, latency, throughput, scale) to demonstrate impact."
+                ))
+            elif not has_verb:
+                bullet_suggestions.append(BulletSuggestion(
+                    original=clean_b,
+                    improved=f"Spearheaded {clean_b[:1].lower() + clean_b[1:]}",
+                    reason="Begin bullet points with an active technical action verb rather than passive phrasing."
+                ))
+            if len(bullet_suggestions) >= 4:
+                break
+
     return ATSScoreResult(
         overall_score=overall,
+        composite_score=composite_score,
+        grade_tier=grade_tier,
         parse_confidence_score=round(confidence_score, 1),
         role_type=role_type,
         breakdown=ATSScoreBreakdown(
@@ -451,4 +595,121 @@ def score_resume_ats(
         issues=issues,
         matched_keywords=matched_kw,
         missing_keywords=missing_kw,
+        ml_prediction=ml_result,
+        bullet_suggestions=bullet_suggestions,
     )
+
+
+def parse_latex_to_structured(latex_code: str) -> tuple[StructuredResumeSchema, str]:
+    """
+    Parse raw LaTeX resume code into StructuredResumeSchema and clean raw text,
+    optimizing for Overleaf LaTeX resumes.
+    """
+    from backend.services.structured_extractor import ContactInfo, SkillsCategorized, ExperienceEntry, EducationEntry
+
+    # Extract Contact
+    name_m = re.search(r"\\textbf{\\Huge\s*([^}]+)}", latex_code) or re.search(r"\\textbf{([^}]+)}", latex_code)
+    name = name_m.group(1).replace(r"\Huge", "").strip() if name_m else "Candidate"
+
+    email_m = re.search(r"([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)", latex_code)
+    email = email_m.group(1).strip() if email_m else ""
+
+    phone_m = re.search(r"\+?\d[\d -]{8,15}\d", latex_code)
+    phone = phone_m.group(0).strip() if phone_m else ""
+
+    linkedin_m = re.search(r"linkedin\.com/in/([a-zA-Z0-9_-]+)", latex_code)
+    linkedin = f"linkedin.com/in/{linkedin_m.group(1)}" if linkedin_m else ""
+
+    # Clean LaTeX markup for raw text
+    def clean_latex(s: str) -> str:
+        s = re.sub(r"\\textbf{([^}]+)}", r"\1", s)
+        s = re.sub(r"\\textit{([^}]+)}", r"\1", s)
+        s = re.sub(r"\\href{[^}]+}{([^}]+)}", r"\1", s)
+        s = re.sub(r"\\hfill", " — ", s)
+        s = re.sub(r"\\\\", "\n", s)
+        s = re.sub(r"\\begin\{itemize\}[^\n]*", "", s)
+        s = re.sub(r"\\end\{itemize\}", "", s)
+        s = re.sub(r"\\item\s*", "• ", s)
+        s = re.sub(r"\\hrule", "", s)
+        s = re.sub(r"\\vspace\{[^}]+\}", "", s)
+        s = re.sub(r"\$[^$]*\$", " | ", s)
+        return s.strip()
+
+    clean_text = clean_latex(latex_code)
+
+    # Extract Summary
+    summary_m = re.search(r"\\section\*{SUMMARY}(?:[^\w\\]*(?:\\\\|\r?\n)?)?([\s\S]*?)(?=\\section|\\end\{document\}|$)", latex_code, re.I)
+    summary = clean_latex(summary_m.group(1)) if summary_m else ""
+
+    # Extract Skills
+    skills_tech: List[str] = []
+    skills_tools: List[str] = []
+    skills_m = re.search(r"\\section\*{(?:TECHNICAL SKILLS|SKILLS|COMPETENCIES)}(?:[^\w\\]*(?:\\\\|\r?\n)?)?([\s\S]*?)(?=\\section|\\end\{document\}|$)", latex_code, re.I)
+    if skills_m:
+        skills_raw = clean_latex(skills_m.group(1))
+        # Support both newline-separated lines and inline commas
+        lines = [l for l in skills_raw.split("\n") if l.strip()]
+        if not lines:
+            lines = [skills_raw]
+        for line in lines:
+            parts = line.split(":")
+            if len(parts) > 1:
+                category_label = parts[0].lower()
+                items = [x.strip() for x in parts[1].split(",") if x.strip()]
+                if "tool" in category_label or "data" in category_label or "cloud" in category_label:
+                    skills_tools.extend(items)
+                else:
+                    skills_tech.extend(items)
+            else:
+                skills_tech.extend([x.strip() for x in line.split(",") if x.strip()])
+
+    # Extract Experience & Projects
+    experience_entries: List[ExperienceEntry] = []
+    exp_m = re.search(r"\\section\*{(?:EXPERIENCE & PROJECTS|EXPERIENCE|WORK EXPERIENCE|PROJECTS)}(?:[^\w\\]*(?:\\\\|\r?\n)?)?([\s\S]*?)(?=\\section|\\end\{document\}|$)", latex_code, re.I)
+    if exp_m:
+        exp_raw = exp_m.group(1)
+        items = re.findall(r"\\item\s*([^\n\\]+)", exp_raw)
+        bullets = [clean_latex(it) for it in items if clean_latex(it)]
+        has_quant = any(bool(re.search(r"(\d+%\s*|\$\s*\d+|\b\d{2,}\b|\b\d+\.\d+\b)", b)) for b in bullets)
+        experience_entries.append(ExperienceEntry(
+            title="Lead Engineer & Architect",
+            company="Technical Projects & Experience",
+            start_date="2024",
+            end_date="Present",
+            bullets=bullets,
+            has_quantified_impact=has_quant,
+        ))
+
+    # Extract Education
+    education_entries: List[EducationEntry] = []
+    edu_m = re.search(r"\\section\*{EDUCATION}(?:[^\w\\]*(?:\\\\|\r?\n)?)?([\s\S]*?)(?=\\section|\\end\{document\}|$)", latex_code, re.I)
+    if edu_m:
+        edu_str = clean_latex(edu_m.group(1))
+        degree = "B.Tech in Computer Science" if ("b.tech" in edu_str.lower() or "bachelor" in edu_str.lower()) else "Bachelors"
+        institution_m = re.search(r"^([^—\n]+)", edu_str)
+        institution = institution_m.group(1).strip() if institution_m else "University"
+        education_entries.append(EducationEntry(
+            degree=degree,
+            institution=institution,
+            graduation_date="2026",
+        ))
+
+    # Extract Certifications
+    certifications: List[str] = []
+    cert_m = re.search(r"\\section\*{CERTIFICATIONS}(?:[^\w\\]*(?:\\\\|\r?\n)?)?([\s\S]*?)(?=\\section|\\end\{document\}|$)", latex_code, re.I)
+    if cert_m:
+        cert_items = re.findall(r"\\item\s*([^\n\\]+)", cert_m.group(1))
+        certifications = [clean_latex(c) for c in cert_items if clean_latex(c)]
+
+    structured = StructuredResumeSchema(
+        contact=ContactInfo(name=name, email=email, phone=phone, linkedin=linkedin),
+        summary=summary,
+        skills=SkillsCategorized(technical=skills_tech, soft=[], tools=skills_tools),
+        experience=experience_entries,
+        education=education_entries,
+        certifications=certifications,
+        sections_detected=["contact", "summary", "education", "skills", "experience", "certifications"],
+        sections_missing=[],
+    )
+
+    return structured, clean_text

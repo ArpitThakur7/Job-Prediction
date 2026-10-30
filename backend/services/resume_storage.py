@@ -1,5 +1,5 @@
 """
-Phase 6 — Dense Embedding & Persistent Storage - JOB-AI Platform
+Phase 6 — Dense Embedding & Persistent Storage - Fletch
 Generates dense text embeddings from structured resume fields, manages version history per user,
 and syncs documents across MongoDB and Pinecone vector namespaces.
 """

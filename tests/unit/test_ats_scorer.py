@@ -112,3 +112,53 @@ def test_gap_analysis_adjacent_skills():
     assert "Python" in res.matched_skills
     adjacent_reqs = [a.required_skill for a in res.adjacent_skills]
     assert "React" in adjacent_reqs or "Mysql" in adjacent_reqs
+
+
+def test_dual_engine_ats_with_ml_prediction():
+    from backend.services.ats_scorer import parse_latex_to_structured
+
+    sample_latex = r"""
+    \documentclass{article}
+    \begin{document}
+    \textbf{\Huge ARPIT THAKUR} \\
+    jane.doe@example.com | +1-555-0100
+    \section*{SUMMARY}
+    \vspace{4pt}
+    Final-year CS student specialized in machine learning and high-performance backend pipelines.
+    \section*{TECHNICAL SKILLS}
+    \vspace{4pt}
+    Languages: Python, TypeScript, SQL, C++ \\
+    Frameworks: FastAPI, React, Next.js, PyTorch, Docker
+    \section*{EXPERIENCE & PROJECTS}
+    \vspace{4pt}
+    Lead Engineer
+    \begin{itemize}
+        \item Built an enterprise job-candidate matching platform achieving 87.4% ROC-AUC on 120k records.
+        \item Engineered real-time unauthenticated ATS discovery pipelines cutting latency by 45%.
+    \end{itemize}
+    \section*{EDUCATION}
+    \vspace{4pt}
+    Jaypee University of Information Technology \hfill 2022 -- 2026 \\
+    B.Tech in Computer Science & Engineering
+    \section*{CERTIFICATIONS}
+    \vspace{4pt}
+    \begin{itemize}
+        \item AWS Certified AI Practitioner (2026)
+    \end{itemize}
+    \end{document}
+    """
+
+    structured, clean_text = parse_latex_to_structured(sample_latex)
+    assert structured.contact.name == "ARPIT THAKUR"
+    assert "Python" in structured.skills.technical
+    assert len(structured.experience) > 0
+
+    res = score_resume_ats(structured, clean_text, include_ml_prediction=True)
+    assert res.overall_score >= 70
+    assert res.composite_score >= 70
+    assert res.grade_tier in ["Elite", "Strong"]
+    assert res.ml_prediction is not None
+    assert res.ml_prediction.engine == "xgboost"
+    assert res.ml_prediction.match_probability > 0.0
+    assert len(res.bullet_suggestions) >= 0
+

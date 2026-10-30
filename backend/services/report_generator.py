@@ -93,7 +93,7 @@ def generate_match_report(
         recommendation = "Low match. You may still apply if you can bridge key missing skills quickly."
 
     elements = []
-    elements.append(Paragraph("JOB-AI-PLATFORM Match Report", title_style))
+    elements.append(Paragraph("Fletch Match Report", title_style))
     elements.append(Spacer(1, 10))
 
     elements.append(Paragraph("Candidate Info", header_style))

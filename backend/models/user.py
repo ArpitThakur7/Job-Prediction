@@ -70,10 +70,12 @@ class LoginRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     """
-    Reset Password Request Payload.
+    Change-password payload. The current password is required: without an email
+    service there is no safe way to reset a password from the email address alone.
     """
 
     email: EmailStr
+    current_password: str = Field(min_length=1, max_length=256)
     new_password: str = Field(min_length=8, max_length=256)
 
 

@@ -18,7 +18,7 @@
     "re-render": "node re-render.mjs",
     "prep": "node prep-applications.mjs",
     "track": "node tracker.mjs",
-    "test": "node --test tests/salvo/*.mjs"
+    "test": "node --test ../tests/salvo/*.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.125.0",

@@ -5,7 +5,7 @@ import { ToastProvider } from "@/context/ToastContext";
 import LayoutShell from "@/components/LayoutShell";
 
 export const metadata: Metadata = {
-  title: "JOB-AI | Find Your Perfect Job Match",
+  title: "Fletch | Every job, scored against your resume",
   description: "AI analyzes your skills and predicts the best opportunities in seconds with 3D interactive telemetry.",
 };
 

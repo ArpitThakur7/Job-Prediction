@@ -1,4 +1,4 @@
-# Contributing to JOB-AI-PLATFORM
+# Contributing to Fletch
 
 Thank you for your interest in contributing! This guide explains the development workflow.
 
@@ -39,10 +39,10 @@ ruff check --fix .
 ruff format .
 
 # Type check
-mypy backend/ api/ ml/
+mypy backend/ ml/
 
 # Run all checks at once (CI pipeline)
-ruff check . && ruff format --check . && mypy backend/ api/ ml/
+ruff check . && ruff format --check . && mypy backend/ ml/
 ```
 
 ## ✅ Testing
@@ -69,7 +69,7 @@ pytest tests/unit/test_ml_pipeline.py -v
    ```bash
    ruff check .
    ruff format --check .
-   mypy backend/ api/ ml/
+   mypy backend/ ml/
    pytest
    ```
 

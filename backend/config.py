@@ -56,7 +56,7 @@ class Settings(BaseSettings):
 
     # Apache Spark Distributed Cluster Settings (disabled by default in local dev)
     SPARK_MASTER_URL: str = "spark://localhost:7077"
-    SPARK_APP_NAME: str = "JOB-AI-Spark-Engine"
+    SPARK_APP_NAME: str = "Fletch-Spark-Engine"
     SPARK_ENABLED: bool = False
 
     # Cryptographically secure secret key generated at runtime if not provided in .env

@@ -18,6 +18,7 @@ from backend.routes.resume import router as resume_router
 from backend.routes.match import router as match_router
 from backend.routes.chat import router as chat_router
 from backend.routes.dashboard import router as dashboard_router
+from backend.routes.feedback import router as feedback_router
 
 logger = logging.getLogger("backend.main")
 
@@ -26,7 +27,7 @@ def create_app() -> FastAPI:
     """
     Create and configure the FastAPI app.
     """
-    app = FastAPI(title="JOB-AI-PLATFORM", version="1.0.0")
+    app = FastAPI(title="Fletch", version="1.0.0")
 
     app.add_middleware(
         CORSMiddleware,
@@ -43,6 +44,7 @@ def create_app() -> FastAPI:
     app.include_router(match_router, prefix="", tags=["match"])
     app.include_router(chat_router, prefix="", tags=["chat"])
     app.include_router(dashboard_router, prefix="", tags=["dashboard"])
+    app.include_router(feedback_router, prefix="", tags=["feedback"])
 
     @app.on_event("startup")
     async def on_startup():
@@ -136,11 +138,11 @@ def create_app() -> FastAPI:
         return {
             "success": True,
             "data": {
-                "name": "JOB-AI-PLATFORM",
+                "name": "Fletch",
                 "version": "1.0.0",
                 "docs": "/docs",
             },
-            "message": "Welcome to JOB-AI Platform",
+            "message": "Welcome to Fletch",
         }
 
     return app

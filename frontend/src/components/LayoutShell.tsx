@@ -1,502 +1,350 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  Bot,
+  Briefcase,
+  FileSearch,
+  FileText,
+  Home,
+  LayoutList,
+  LogOut,
+  Menu,
+  ScanSearch,
+  Settings,
+  UserRound,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { useApp } from "@/context/AppContext";
-import Background3DCanvas from "@/components/3d/Background3DCanvas";
-import Card3DTilt from "@/components/3d/Card3DTilt";
 import ThemeSwitcher from "@/components/3d/ThemeSwitcher";
+
+type NavItem = { name: string; href: string; icon: LucideIcon; desc?: string };
+
+const navGroups: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Find work",
+    items: [
+      { name: "Home", href: "/", icon: Home },
+      { name: "Job feed", href: "/jobs", icon: Briefcase },
+      { name: "Tracker", href: "/applications", icon: LayoutList },
+    ],
+  },
+  {
+    label: "Your resume",
+    items: [
+      { name: "Resume studio", href: "/resume", icon: FileText, desc: "Edit and export your resume" },
+      { name: "Resume check", href: "/analyzer", icon: ScanSearch, desc: "Find skill gaps against real jobs" },
+      { name: "Job post reader", href: "/parser", icon: FileSearch, desc: "Pull requirements out of a posting" },
+    ],
+  },
+  {
+    label: "Help",
+    items: [{ name: "Career coach", href: "/coach", icon: Bot, desc: "Ask about interviews and resumes" }],
+  },
+];
+
+const footerNav: NavItem[] = [
+  { name: "Account", href: "/account", icon: UserRound, desc: "Profile and sign-in" },
+  { name: "Settings", href: "/settings", icon: Settings, desc: "Keys, engine and services" },
+];
+
+const mobilePrimary: NavItem[] = [
+  { name: "Home", href: "/", icon: Home },
+  { name: "Jobs", href: "/jobs", icon: Briefcase },
+  { name: "Tracker", href: "/applications", icon: LayoutList },
+  { name: "Resume", href: "/resume", icon: FileText },
+];
+
+const mobileMore: NavItem[] = [...navGroups[1].items.slice(1), ...navGroups[2].items, ...footerNav];
+
+const pageTitles: Record<string, string> = {
+  "/jobs": "Job feed",
+  "/job-board": "Job feed",
+  "/applications": "Application tracker",
+  "/resume": "Resume studio",
+  "/analyzer": "Resume check",
+  "/parser": "Job post reader",
+  "/coach": "Career coach",
+  "/account": "Account",
+  "/settings": "Settings",
+  "/settings/salvo": "Salvo engine settings",
+};
+
+function isActive(pathname: string, href: string) {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(href + "/");
+}
 
 export const LayoutShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
   const { infraStatus, user, logout, currentThemeColors } = useApp();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
-  const navItems = [
-    { name: "Dashboard", href: "/", icon: "🏠" },
-    { name: "Salvo Feed", href: "/jobs", icon: "⚡" },
-    { name: "Tracker", href: "/applications", icon: "📊" },
-    { name: "Resume Hub", href: "/resume", icon: "📝" },
-    { name: "Job Board", href: "/job-board", icon: "💼" },
-    { name: "Analyzer", href: "/analyzer", icon: "📄" },
-    { name: "Parser", href: "/parser", icon: "🔍" },
-    { name: "Coach", href: "/coach", icon: "🤖" },
-    { name: "Account", href: "/account", icon: "🔐" },
-    { name: "Settings", href: "/settings", icon: "⚙️" },
-  ];
-
-  const mobilePrimaryNav = [
-    { name: "Home", href: "/", icon: "🏠" },
-    { name: "Salvo", href: "/jobs", icon: "⚡" },
-    { name: "Tracker", href: "/applications", icon: "📊" },
-    { name: "Resume", href: "/resume", icon: "📝" },
-  ];
-
-  const secondaryNav = [
-    { name: "Job Board", href: "/job-board", icon: "💼", desc: "AI semantic job matching" },
-    { name: "Analyzer", href: "/analyzer", icon: "📄", desc: "ATS skill gap scoring" },
-    { name: "Parser", href: "/parser", icon: "🔍", desc: "Requirement extraction" },
-    { name: "Coach", href: "/coach", icon: "🤖", desc: "RAG career assistant" },
-    { name: "Account", href: "/account", icon: "🔐", desc: "Profile & credentials" },
-    { name: "Settings", href: "/settings", icon: "⚙️", desc: "System diagnostics" },
-  ];
-
-  const isSecondaryActive = secondaryNav.some(
-    (item) => pathname === item.href || pathname.startsWith(item.href + "/")
-  );
-
-  const getPageTitle = () => {
-    if (pathname.startsWith("/jobs/")) return "Posting Details & Fit Breakdown";
-    switch (pathname) {
-      case "/":
-        return "Quantum 3D Dashboard";
-      case "/jobs":
-        return "Salvo Agentic Job Feed";
-      case "/applications":
-        return "Application Tracker & Pipeline";
-      case "/resume":
-        return "Truth Bank & Resume Hub";
-      case "/settings/salvo":
-        return "Salvo Engine Settings";
-      case "/account":
-        return "Account & Security Hub";
-      case "/analyzer":
-        return "3D Resume Skill Analyzer";
-      case "/parser":
-        return "Job Description Parser";
-      case "/job-board":
-        return "AI Match Job Board";
-      case "/coach":
-        return "3D AI Career Coach";
-      case "/settings":
-        return "Platform Settings & Diagnostics";
-      default:
-        return "Platform Control";
-    }
-  };
-
-  const getPageSubtitle = () => {
-    if (pathname.startsWith("/jobs/")) return "Deterministic triage analysis, XGBoost match score, and assisted apply.";
-    switch (pathname) {
-      case "/":
-        return "Real-time candidate telemetry, 3D match scoring, and neural job recommendations.";
-      case "/jobs":
-        return "Zero-auth public board discovery, deterministic triage, and ML match probability.";
-      case "/applications":
-        return "Track job statuses from Discovered to Offer with Excel single source of truth.";
-      case "/resume":
-        return "Master resume and portfolio verified facts for truth-bounded tailoring.";
-      case "/settings/salvo":
-        return "Search profiles, board registry health, and LLM tailoring models.";
-      case "/account":
-        return "Manage account security, active sessions, and parsed profile credentials.";
-      case "/analyzer":
-        return "Deep-scan your resume against real job market requirements with AI skill scoring.";
-      case "/parser":
-        return "Extract structured requirements, tech stacks, and experience tags from job postings.";
-      case "/job-board":
-        return "Browse high-precision semantic job matches generated by our ML scoring model.";
-      case "/coach":
-        return "Interact with our RAG-powered LLaMA 3D Assistant for interview prep and resume feedback.";
-      case "/settings":
-        return "Configure local LLM keys, database endpoints, and system health status.";
-      default:
-        return "Welcome to JOB-AI Platform.";
-    }
-  };
-
-  const renderStatusDot = (val: boolean) => {
-    return val ? (
-      <span
-        className="inline-block w-2 h-2 rounded-full animate-pulse"
-        style={{ backgroundColor: currentThemeColors.secondary, boxShadow: `0 0 8px ${currentThemeColors.secondary}` }}
-      />
-    ) : (
-      <span className="inline-block w-2 h-2 rounded-full bg-red-500" />
-    );
-  };
-
-  const renderHeaderBadge = (lbl: string, statusVal: boolean) => {
-    const bg = statusVal ? currentThemeColors.badgeBg : "rgba(239, 68, 68, 0.08)";
-    const border = statusVal ? currentThemeColors.badgeBorder : "rgba(239, 68, 68, 0.25)";
-    const color = statusVal ? currentThemeColors.badgeText : "#dc2626";
-    return (
-      <span
-        key={lbl}
-        className="inline-flex items-center gap-1.5 text-[10px] font-bold font-mono px-2.5 py-1 rounded-full border backdrop-blur-md transition-all duration-300 hover:scale-105"
-        style={{ background: bg, borderColor: border, color }}
-      >
-        {renderStatusDot(statusVal)}
-        {lbl}
-      </span>
-    );
-  };
+  const title = pathname.startsWith("/jobs/") ? "Job details" : pageTitles[pathname];
+  const moreActive = mobileMore.some((i) => isActive(pathname, i.href));
 
   return (
-    <div
-      className="relative flex min-h-screen overflow-x-hidden transition-colors duration-300"
-      style={{
-        backgroundColor: "var(--theme-bg, #FAFBFF)",
-        color: "var(--theme-text, #0F172A)",
-      }}
-    >
-      {/* 3D WebGL Background Canvas */}
-      <Background3DCanvas />
+    <div className="relative flex min-h-screen overflow-x-clip" style={{ color: "var(--theme-text, #0F172A)" }}>
+      {/* Colour fields behind the glass */}
+      <div className="mesh-field" aria-hidden>
+        <span style={{ width: "46vw", height: "46vw", left: "-12vw", top: "-14vw", background: currentThemeColors.primary }} />
+        <span style={{ width: "38vw", height: "38vw", right: "-10vw", top: "18vh", background: currentThemeColors.accent, animationDelay: "-8s" }} />
+        <span style={{ width: "34vw", height: "34vw", left: "30vw", bottom: "-16vw", background: currentThemeColors.secondary, animationDelay: "-16s" }} />
+      </div>
 
-      {/* 1. Desktop Left Sidebar */}
-      <aside
-        className="hidden min-[821px]:flex w-64 backdrop-blur-xl flex-col p-5 select-none shrink-0 z-20 shadow-[5px_0_30px_rgba(15,23,42,0.04)] transition-colors duration-300"
-        style={{
-          backgroundColor: "var(--theme-sidebar-bg, rgba(255, 255, 255, 0.88))",
-          borderRight: "1px solid var(--theme-panel-border, rgba(226, 232, 240, 0.8))",
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className="w-10 h-10 rounded-xl p-[1px] shadow-md"
-            style={{ background: `linear-gradient(135deg, ${currentThemeColors.primary}, ${currentThemeColors.secondary})` }}
-          >
-            <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[11px] flex items-center justify-center text-xl shadow-inner">
-              ⚡
-            </div>
-          </div>
-          <div>
-            <h2
-              className="text-xl font-black bg-clip-text text-transparent font-heading m-0 tracking-tight"
-              style={{ backgroundImage: `linear-gradient(to right, var(--theme-text, #0f172a), ${currentThemeColors.primary})` }}
-            >
-              JOB-AI 3D
-            </h2>
-            <p
-              className="text-[9px] font-bold tracking-widest uppercase m-0 mt-0.5 font-mono"
-              style={{ color: currentThemeColors.primary }}
-            >
-              ENTERPRISE PLATFORM
-            </p>
-          </div>
-        </div>
+      {/* Desktop sidebar */}
+      <aside className="hidden min-[821px]:flex sticky top-0 h-screen w-[248px] shrink-0 p-3 z-20">
+        <div className="glass-strong flex flex-col w-full rounded-[28px] p-4">
+          <Link href="/" className="flex items-center gap-2.5 px-2 pt-1 pb-5">
+            <FletchMark color={currentThemeColors.primary} accent={currentThemeColors.secondary} />
+            <span className="font-display text-[22px] font-extrabold leading-none">Fletch</span>
+          </Link>
 
-        <hr className="my-5 border-slate-200/80 dark:border-white/10" />
-
-        {/* Vertical Navigation list */}
-        <nav className="flex-1 flex flex-col space-y-2 overflow-y-auto pr-1 w-full">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`sidebar-link w-full flex items-center gap-3 group relative overflow-hidden transition-all duration-300 ${
-                  isActive
-                    ? "sidebar-link-active font-bold text-slate-900 shadow-sm"
-                    : "hover:bg-slate-100/80 text-slate-600 hover:text-slate-900"
-                }`}
-                style={
-                  isActive
-                    ? {
-                        backgroundColor: `${currentThemeColors.primary}12`,
-                        borderLeftColor: currentThemeColors.primary,
-                        boxShadow: `0 2px 10px ${currentThemeColors.primary}15`,
-                      }
-                    : {}
-                }
-              >
-                <span className="text-lg transition-transform duration-300 group-hover:scale-125">
-                  {item.icon}
-                </span>
-                <span className="font-semibold text-sm">{item.name}</span>
-                {isActive && (
-                  <span
-                    className="absolute right-3 w-2 h-2 rounded-full"
-                    style={{ backgroundColor: currentThemeColors.primary, boxShadow: `0 0 8px ${currentThemeColors.primary}` }}
-                  />
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Lower Authentication & Telemetry */}
-        <div className="mt-auto pt-4 border-t border-slate-200/80 space-y-3">
-          {user ? (
-            <Card3DTilt maxDegree={6} scaleOnHover={1.01} className="glass-panel p-3 text-xs">
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center font-heading text-white font-bold text-base shadow-md"
-                  style={{ background: `linear-gradient(135deg, ${currentThemeColors.primary}, ${currentThemeColors.secondary})` }}
-                >
-                  {user.full_name?.charAt(0).toUpperCase() || "U"}
-                </div>
-                <div className="min-w-0">
-                  <p className="font-bold text-slate-900 truncate">{user.full_name}</p>
-                  <p className="text-[10px] font-mono font-semibold capitalize" style={{ color: currentThemeColors.primary }}>
-                    ● {user.role || "Job Seeker"}
-                  </p>
-                </div>
+          <nav className="flex-1 overflow-y-auto space-y-5 pr-1" aria-label="Main">
+            {navGroups.map((group) => (
+              <div key={group.label}>
+                <p className="px-3 mb-1.5 text-xs font-medium" style={{ color: "var(--theme-text-muted)" }}>
+                  {group.label}
+                </p>
+                <ul className="space-y-0.5">
+                  {group.items.map((item) => (
+                    <li key={item.href}>
+                      <SideLink item={item} active={isActive(pathname, item.href)} color={currentThemeColors.primary} />
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <button
-                onClick={() => logout()}
-                className="w-full mt-3 py-1.5 rounded-lg border border-red-200 hover:border-red-400 bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-[10px] transition-all cursor-pointer font-mono shadow-sm"
-              >
-                Sign Out
-              </button>
-            </Card3DTilt>
-          ) : (
-            <div className="glass-panel p-3 text-xs">
-              <p className="font-bold text-slate-900 mb-1 flex items-center gap-1.5">
-                <span>🔐</span> Guest Session
-              </p>
-              <p className="text-[10px] text-slate-500 mb-3">
-                Sign in to sync candidate profiles and 3D match score history.
-              </p>
-              <Link
-                href="/account"
-                className="w-full inline-flex items-center justify-center py-1.5 rounded-lg border text-white font-bold text-[10px] transition-all text-center font-mono shadow-sm"
-                style={{
-                  background: `linear-gradient(to right, ${currentThemeColors.primary}, ${currentThemeColors.secondary})`,
-                  borderColor: `${currentThemeColors.primary}`,
-                }}
-              >
-                Go to Authentication
-              </Link>
-            </div>
-          )}
+            ))}
+          </nav>
 
-          {/* Infrastructure Health Panel */}
-          <div className="text-[10px] text-slate-600 space-y-1.5 bg-slate-100/90 backdrop-blur-md p-3 rounded-xl border border-slate-200/80 font-mono shadow-inner">
-            <div className="flex justify-between items-center pb-1 border-b border-slate-200/80 text-[9px] font-bold text-slate-900 uppercase tracking-wider">
-              <span>System Telemetry</span>
-              <span style={{ color: currentThemeColors.primary }}>LIVE</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span>Backend API</span>
-              {renderStatusDot(infraStatus.backend)}
-            </div>
-            <div className="flex justify-between items-center">
-              <span>MongoDB</span>
-              {renderStatusDot(infraStatus.mongodb)}
-            </div>
-            <div className="flex justify-between items-center">
-              <span>Pinecone Vector</span>
-              {renderStatusDot(infraStatus.pinecone)}
-            </div>
-            <div className="flex justify-between items-center">
-              <span>Groq AI Engine</span>
-              {renderStatusDot(infraStatus.groq)}
+          <div className="pt-3 mt-3 space-y-0.5 border-t" style={{ borderColor: "var(--glass-line)" }}>
+            {footerNav.map((item) => (
+              <SideLink key={item.href} item={item} active={isActive(pathname, item.href)} color={currentThemeColors.primary} />
+            ))}
+            <div className="flex items-center justify-between gap-2 px-2 pt-3">
+              <ServiceStatus status={infraStatus} />
+              {user && (
+                <button
+                  onClick={() => logout()}
+                  className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                  title="Sign out"
+                  aria-label="Sign out"
+                >
+                  <LogOut size={16} />
+                </button>
+              )}
             </div>
           </div>
         </div>
       </aside>
 
-      {/* 2. Responsive Mobile Bottom Bar */}
+      {/* Main column */}
+      {/* No z-index here: page overlays (drawers, sheets) must be able to cover the sidebar. */}
+      <div className="relative flex-1 flex flex-col min-w-0 pb-24 min-[821px]:pb-8">
+        <header className="flex items-center justify-between gap-3 px-4 sm:px-6 min-[821px]:px-8 pt-4 pb-2 min-[821px]:pt-6">
+          <div className="flex items-center gap-2 min-w-0">
+            <Link href="/" className="min-[821px]:hidden flex items-center gap-2 mr-1" aria-label="Fletch home">
+              <FletchMark color={currentThemeColors.primary} accent={currentThemeColors.secondary} />
+            </Link>
+            {title && <h1 className="font-display text-xl sm:text-2xl font-bold truncate">{title}</h1>}
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:block">
+              <ThemeSwitcher />
+            </div>
+            <div className="min-[821px]:hidden">
+              <ServiceStatus status={infraStatus} compact />
+            </div>
+            <Link
+              href="/account"
+              className="glass flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full text-sm font-semibold"
+            >
+              <span
+                className="w-7 h-7 rounded-full grid place-items-center text-white text-xs font-bold"
+                style={{ background: `linear-gradient(135deg, ${currentThemeColors.primary}, ${currentThemeColors.accent})` }}
+              >
+                {user?.full_name?.charAt(0).toUpperCase() || <UserRound size={14} />}
+              </span>
+              <span className="hidden sm:inline">{user ? user.full_name?.split(" ")[0] : "Sign in"}</span>
+            </Link>
+          </div>
+        </header>
+
+        <main className="flex-1 px-3 sm:px-6 min-[821px]:px-8 pt-2 pb-6 fade-in">{children}</main>
+      </div>
+
+      {/* Mobile bottom bar */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-40 backdrop-blur-xl flex justify-around items-center select-none min-[821px]:hidden shadow-[0_-5px_25px_rgba(0,0,0,0.08)] transition-colors duration-300"
-        style={{
-          backgroundColor: "var(--theme-header-bg, rgba(255, 255, 255, 0.96))",
-          borderTop: "1px solid var(--theme-panel-border, rgba(226, 232, 240, 0.85))",
-          paddingBottom: "max(6px, env(safe-area-inset-bottom))",
-          paddingTop: "4px",
-          height: "calc(58px + env(safe-area-inset-bottom, 0px))",
-        }}
+        className="glass-strong fixed bottom-3 left-3 right-3 z-40 rounded-3xl flex justify-around items-center min-[821px]:hidden"
+        style={{ paddingBottom: "max(6px, env(safe-area-inset-bottom))", paddingTop: 6 }}
+        aria-label="Main"
       >
-        {mobilePrimaryNav.map((item) => {
-          const isActive = pathname === item.href;
+        {mobilePrimary.map((item) => {
+          const active = isActive(pathname, item.href);
+          const Icon = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center gap-0.5 text-slate-500 hover:text-slate-900 transition-all text-[10px] font-heading px-2 py-1 min-w-[54px] touch-manipulation ${
-                isActive ? "font-bold scale-105" : "opacity-80"
-              }`}
-              style={isActive ? { color: currentThemeColors.primary, opacity: 1 } : {}}
+              className="flex flex-col items-center gap-0.5 px-3 py-1 text-[11px] font-semibold min-w-[56px]"
+              style={{ color: active ? currentThemeColors.primary : "var(--theme-text-muted)" }}
+              aria-current={active ? "page" : undefined}
             >
-              <span className="text-lg leading-none">{item.icon}</span>
-              <span className="truncate max-w-[58px] leading-tight">{item.name}</span>
+              <Icon size={20} strokeWidth={active ? 2.4 : 1.8} />
+              {item.name}
             </Link>
           );
         })}
-
         <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className={`flex flex-col items-center justify-center gap-0.5 text-slate-500 hover:text-slate-900 transition-all text-[10px] font-heading px-2 py-1 min-w-[54px] touch-manipulation relative ${
-            isSecondaryActive || mobileMenuOpen ? "font-bold scale-105" : "opacity-80"
-          }`}
-          style={isSecondaryActive || mobileMenuOpen ? { color: currentThemeColors.primary, opacity: 1 } : {}}
-          aria-label="More navigation items"
+          onClick={() => setMoreOpen(true)}
+          className="flex flex-col items-center gap-0.5 px-3 py-1 text-[11px] font-semibold min-w-[56px]"
+          style={{ color: moreActive ? currentThemeColors.primary : "var(--theme-text-muted)" }}
+          aria-expanded={moreOpen}
         >
-          <span className="text-lg leading-none">⋯</span>
-          <span className="truncate max-w-[58px] leading-tight">More</span>
-          {isSecondaryActive && !mobileMenuOpen && (
-            <span
-              className="absolute top-1 right-2 w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: currentThemeColors.primary }}
-            />
-          )}
+          <Menu size={20} />
+          More
         </button>
       </nav>
 
-      {/* Mobile "More" Drawer Modal */}
-      {mobileMenuOpen && (
-        <div
-          className="fixed inset-0 z-50 min-[821px]:hidden flex flex-col justify-end bg-black/40 backdrop-blur-xs animate-fade-in"
-          onClick={() => setMobileMenuOpen(false)}
-        >
+      {moreOpen && (
+        <div className="fixed inset-0 z-50 min-[821px]:hidden flex flex-col justify-end bg-black/30 backdrop-blur-sm" onClick={() => setMoreOpen(false)}>
           <div
-            className="w-full rounded-t-3xl p-5 pb-8 shadow-2xl space-y-4 max-h-[82vh] overflow-y-auto"
-            style={{
-              backgroundColor: "var(--theme-sidebar-bg, rgba(255, 255, 255, 0.98))",
-              borderTop: "1px solid var(--theme-panel-border, rgba(226, 232, 240, 0.9))",
-            }}
+            className="glass-strong rounded-t-[28px] p-5 pb-10 space-y-4"
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-label="More pages"
           >
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 dark:border-white/10">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">⚡</span>
-                <span className="font-heading font-black text-slate-900 dark:text-white text-base">
-                  Platform Features
-                </span>
-              </div>
-              <button
-                onClick={() => setMobileMenuOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 text-sm font-bold"
-              >
-                ✕
+            <div className="flex items-center justify-between">
+              <span className="font-display text-lg font-bold">More</span>
+              <button onClick={() => setMoreOpen(false)} className="p-2 rounded-full hover:bg-black/5" aria-label="Close">
+                <X size={18} />
               </button>
             </div>
-
-            <div className="grid grid-cols-2 gap-2.5">
-              {secondaryNav.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+            <div className="grid grid-cols-2 gap-2">
+              {mobileMore.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(pathname, item.href);
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="p-3 rounded-2xl border transition-all flex flex-col gap-1"
-                    style={{
-                      backgroundColor: isActive ? `${currentThemeColors.primary}12` : "var(--theme-badge-bg, rgba(241, 245, 249, 0.7))",
-                      borderColor: isActive ? currentThemeColors.primary : "var(--theme-panel-border, rgba(226, 232, 240, 0.8))",
-                    }}
+                    onClick={() => setMoreOpen(false)}
+                    className="glass rounded-2xl p-3 flex flex-col gap-1"
+                    style={active ? { borderColor: currentThemeColors.primary } : undefined}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">{item.icon}</span>
-                      <span className="font-bold text-sm text-slate-900 dark:text-white">{item.name}</span>
-                    </div>
-                    <span className="text-[10px] text-slate-500 line-clamp-1">{item.desc}</span>
+                    <span className="flex items-center gap-2 font-semibold text-sm">
+                      <Icon size={16} style={{ color: currentThemeColors.primary }} />
+                      {item.name}
+                    </span>
+                    {item.desc && <span className="text-xs" style={{ color: "var(--theme-text-muted)" }}>{item.desc}</span>}
                   </Link>
                 );
               })}
             </div>
-
-            {/* Quick Mobile Theme & Account info */}
-            <div className="pt-2 border-t border-slate-200/80 dark:border-white/10 flex items-center justify-between">
-              <ThemeSwitcher />
-              {user ? (
-                <button
-                  onClick={() => {
-                    logout();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-600 font-bold text-xs"
-                >
-                  Sign Out
-                </button>
-              ) : (
-                <Link
-                  href="/account"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="px-3.5 py-1.5 rounded-lg text-white font-bold text-xs shadow-xs"
-                  style={{ backgroundColor: currentThemeColors.primary }}
-                >
-                  Sign In
-                </Link>
-              )}
-            </div>
+            <ThemeSwitcher />
           </div>
         </div>
       )}
-
-      {/* 3. Main Page Context */}
-      <div className="flex-1 flex flex-col min-w-0 pb-24 sm:pb-28 min-[821px]:pb-6 z-10">
-        {/* Top Header */}
-        <header
-          className="px-3.5 sm:px-6 min-[821px]:px-8 py-3 sm:py-4 min-[821px]:py-5 flex flex-col min-[821px]:flex-row min-[821px]:items-center justify-between gap-3 sm:gap-4 backdrop-blur-xl shrink-0 shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-colors duration-300"
-          style={{
-            backgroundColor: "var(--theme-header-bg, rgba(255, 255, 255, 0.78))",
-            borderBottom: "1px solid var(--theme-panel-border, rgba(226, 232, 240, 0.8))",
-          }}
-        >
-          <div>
-            <h1
-              className="text-base sm:text-lg min-[821px]:text-2xl font-black font-heading bg-clip-text text-transparent m-0 leading-tight"
-              style={{
-                backgroundImage: `linear-gradient(to right, var(--theme-text, #0f172a), ${currentThemeColors.primary})`,
-              }}
-            >
-              {getPageTitle()}
-            </h1>
-            <p
-              className="text-[10px] sm:text-[11px] min-[821px]:text-xs m-0 mt-0.5 sm:mt-1 font-medium line-clamp-1 sm:line-clamp-none"
-              style={{ color: "var(--theme-text-muted, #64748B)" }}
-            >
-              {getPageSubtitle()}
-            </p>
-          </div>
-
-          {/* Theme Switcher, Account Auth, & Status capsules */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-[821px]:flex-nowrap justify-between sm:justify-start w-full min-[821px]:w-auto">
-            <div className="overflow-x-auto max-w-full pb-0.5 scrollbar-none">
-              <ThemeSwitcher />
-            </div>
-            
-            <div className="flex items-center gap-2 ml-auto min-[821px]:ml-0">
-              {user ? (
-                <Link
-                  href="/account"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs font-mono font-bold transition-all cursor-pointer shadow-xs touch-manipulation"
-                  style={{ backgroundColor: "var(--theme-primary, #4F46E5)" }}
-                >
-                  <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px]">
-                    {user.full_name?.charAt(0).toUpperCase() || "U"}
-                  </span>
-                  <span className="hidden xs:inline">{user.full_name?.split(" ")[0] || "Account"}</span>
-                </Link>
-              ) : (
-                <Link
-                  href="/account"
-                  className="px-3 py-1.5 rounded-full text-white text-xs font-mono font-bold hover:shadow-md transition-all cursor-pointer shadow-xs flex items-center gap-1 touch-manipulation"
-                  style={{
-                    background: `linear-gradient(to right, ${currentThemeColors.primary}, ${currentThemeColors.secondary})`,
-                    boxShadow: `0 4px 14px ${currentThemeColors.glow}`,
-                  }}
-                >
-                  <span>🔐</span>
-                  <span className="hidden sm:inline">Sign In / Register</span>
-                  <span className="sm:hidden">Sign In</span>
-                </Link>
-              )}
-
-              <div className="hidden sm:flex items-center gap-1.5">
-                {renderHeaderBadge("API", infraStatus.backend)}
-                {renderHeaderBadge("MongoDB", infraStatus.mongodb)}
-                {renderHeaderBadge("Pinecone", infraStatus.pinecone)}
-                {renderHeaderBadge("Groq", infraStatus.groq)}
-              </div>
-              <div className="sm:hidden flex items-center">
-                {renderHeaderBadge("Online", infraStatus.backend || infraStatus.mongodb)}
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Content Body */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-5 min-[821px]:p-8 fade-in">
-          {children}
-        </main>
-      </div>
     </div>
   );
 };
+
+function SideLink({ item, active, color }: { item: NavItem; active: boolean; color: string }) {
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      aria-current={active ? "page" : undefined}
+      className="relative flex items-center gap-3 px-3 py-2 rounded-2xl text-[15px] font-medium transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
+      style={
+        active
+          ? { background: `${color}18`, color, fontWeight: 650 }
+          : { color: "var(--theme-text)" }
+      }
+    >
+      <Icon size={18} strokeWidth={active ? 2.3 : 1.8} />
+      {item.name}
+    </Link>
+  );
+}
+
+type Infra = { backend: boolean; mongodb: boolean; pinecone: boolean; groq: boolean };
+
+function ServiceStatus({ status, compact = false }: { status: Infra; compact?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const services: [string, boolean][] = [
+    ["Prediction API", status.backend],
+    ["Database", status.mongodb],
+    ["Vector search", status.pinecone],
+    ["AI writer", status.groq],
+  ];
+  const up = services.filter(([, ok]) => ok).length;
+  const allUp = up === services.length;
+  const color = allUp ? "var(--fit-high)" : up === 0 ? "#E5484D" : "var(--fit-mid)";
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener("mousedown", close);
+    return () => window.removeEventListener("mousedown", close);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`flex items-center gap-2 rounded-full text-xs font-medium ${compact ? "glass p-2.5" : "px-2 py-1.5 hover:bg-black/5 dark:hover:bg-white/10"}`}
+        aria-expanded={open}
+        aria-label={`${up} of ${services.length} services running`}
+      >
+        <span className="w-2 h-2 rounded-full" style={{ background: color, boxShadow: `0 0 0 3px color-mix(in srgb, ${color} 25%, transparent)` }} />
+        {!compact && (allUp ? "All services on" : `${up} of ${services.length} services on`)}
+      </button>
+      {open && (
+        <div className={`glass-strong absolute z-50 w-56 rounded-2xl p-3 space-y-2 text-sm ${compact ? "right-0 top-12" : "left-0 bottom-10"}`}>
+          {services.map(([name, ok]) => (
+            <div key={name} className="flex items-center justify-between">
+              <span>{name}</span>
+              <span className="text-xs font-semibold" style={{ color: ok ? "var(--fit-high)" : "#E5484D" }}>
+                {ok ? "Running" : "Offline"}
+              </span>
+            </div>
+          ))}
+          {!allUp && (
+            <Link href="/settings" className="block pt-2 text-xs font-semibold" style={{ color: "var(--theme-primary)" }}>
+              Open settings to fix
+            </Link>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** An arrow's arc with its fletching trail — one shot, aimed. */
+function FletchMark({ color, accent }: { color: string; accent: string }) {
+  // Unique per instance: the sidebar copy is display:none on mobile and would swallow a shared id.
+  const id = "fletch-g" + useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  return (
+    <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden>
+      <defs>
+        <linearGradient id={id} x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stopColor={color} />
+          <stop offset="1" stopColor={accent} />
+        </linearGradient>
+      </defs>
+      <rect width="32" height="32" rx="10" fill={`url(#${id})`} />
+      <path d="M7 23c4-9 9-13 18-14" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" fill="none" />
+      <path d="M7 18c3-5 6-7 11-8" stroke="#fff" strokeOpacity=".7" strokeWidth="2.4" strokeLinecap="round" fill="none" />
+      <circle cx="25" cy="9" r="2.6" fill="#fff" />
+    </svg>
+  );
+}
 
 export default LayoutShell;

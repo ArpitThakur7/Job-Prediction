@@ -1,5 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
 @import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --color-indigo-primary: #4F46E5;
@@ -16,8 +18,18 @@
 :root {
   --background: #FAFBFF;
   --foreground: #0F172A;
-  --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-plus-jakarta: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-inter: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-plus-jakarta: 'Bricolage Grotesque', 'Figtree', -apple-system, sans-serif;
+
+  /* Glass system — tinted by the active theme's primary colour */
+  --glass-bg: rgba(255, 255, 255, 0.58);
+  --glass-bg-strong: rgba(255, 255, 255, 0.78);
+  --glass-edge: rgba(255, 255, 255, 0.85);
+  --glass-line: rgba(30, 27, 75, 0.08);
+  --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 12px 40px -12px rgba(30, 27, 75, 0.18);
+  --fit-high: #0FB97C;
+  --fit-mid: #E9A23B;
+  --fit-low: #9C8FCB;
   --font-jetbrains-mono: 'JetBrains Mono', 'Courier New', monospace;
   
   --color-indigo: #2563eb;
@@ -43,8 +55,13 @@
   --theme-text-muted: #64748B;
 }
 
+html {
+  background: var(--theme-bg, #FAFBFF);
+}
+
 body {
   background: var(--theme-bg-gradient, linear-gradient(180deg, #FAFBFF 0%, #EEF2FF 100%));
+  background-attachment: fixed;
   color: var(--theme-text, var(--foreground));
   font-family: var(--font-inter), sans-serif;
   min-height: 100vh;
@@ -92,9 +109,101 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .glass-panel:hover {
-  border-color: var(--theme-primary, rgba(79, 70, 229, 0.35));
-  box-shadow: 0 14px 40px var(--theme-glow, rgba(79, 70, 229, 0.18));
-  transform: rotateX(2deg) rotateY(2deg) translateY(-4px);
+  border-color: var(--theme-badge-border, rgba(79, 70, 229, 0.35));
+}
+
+/* ── Glass surfaces ─────────────────────────────────────────── */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-shadow);
+}
+.glass-strong {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-shadow);
+}
+.dark {
+  --glass-bg: rgba(18, 20, 38, 0.55);
+  --glass-bg-strong: rgba(18, 20, 38, 0.8);
+  --glass-edge: rgba(255, 255, 255, 0.1);
+  --glass-line: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 16px 48px -16px rgba(0, 0, 0, 0.6);
+}
+
+/* Soft colour fields behind the glass, drawn from the theme */
+.mesh-field {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.mesh-field span {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: 0.45;
+  animation: mesh-drift 26s ease-in-out infinite alternate;
+}
+.dark .mesh-field span { opacity: 0.28; }
+@keyframes mesh-drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(4vw, -3vh, 0) scale(1.12); }
+}
+
+.font-display {
+  font-family: var(--font-plus-jakarta), sans-serif;
+  font-optical-sizing: auto;
+  letter-spacing: -0.035em;
+}
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* Range input used by the fit filter */
+.fit-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--fit-low), var(--fit-mid) 55%, var(--fit-high));
+  outline: none;
+}
+.fit-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 3px solid var(--theme-primary);
+  box-shadow: 0 2px 8px rgba(30, 27, 75, 0.25);
+  cursor: grab;
+}
+.fit-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 3px solid var(--theme-primary);
+  cursor: grab;
+}
+
+:focus-visible {
+  outline: 2px solid var(--theme-primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mesh-field span { animation: none; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Vertical Downward Sidebar Links */

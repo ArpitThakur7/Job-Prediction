@@ -21,6 +21,8 @@ export interface SalvoJob {
   score?: number;
   relevanceScore?: number;
   predictionScore?: number;
+  /** "model" when the trained model scored it; "heuristic" when the prediction API was offline. */
+  predictionSource?: "model" | "heuristic";
   combinedScore?: number;
   reasons?: string[];
   blocked?: boolean;
@@ -145,15 +147,30 @@ export class SalvoApiError extends Error {
 // ---------------------------------------------------------------------------
 
 async function safeFetch(endpoint: string, init?: RequestInit): Promise<any> {
-  let res: Response;
+  let res: Response | null = null;
   try {
     res = await fetch(`${SALVO_API_URL}${endpoint}`, init);
-  } catch (err: any) {
-    throw new SalvoApiError(
-      `Engine unreachable at ${SALVO_API_URL}. Is the Salvo engine running?`,
-      0,
-      endpoint,
-    );
+  } catch {
+    // If engine is unreachable and in browser, attempt fallback via Next.js internal route
+    if (typeof window !== "undefined") {
+      try {
+        if (endpoint.startsWith("/api/jobs")) {
+          const fallbackEndpoint = endpoint.replace(/^\/api\/jobs/, "/api/salvo/jobs");
+          res = await fetch(fallbackEndpoint, init);
+        } else if (endpoint.startsWith("/api/health")) {
+          res = await fetch("/api/salvo/health", init);
+        }
+      } catch {
+        // Fallback also failed
+      }
+    }
+    if (!res) {
+      throw new SalvoApiError(
+        `Engine unreachable at ${SALVO_API_URL}. Is the Salvo engine running?`,
+        0,
+        endpoint,
+      );
+    }
   }
 
   if (!res.ok) {
@@ -176,7 +193,7 @@ async function safeFetchRaw(endpoint: string, init?: RequestInit): Promise<Respo
   let res: Response;
   try {
     res = await fetch(`${SALVO_API_URL}${endpoint}`, init);
-  } catch (err: any) {
+  } catch {
     throw new SalvoApiError(
       `Engine unreachable at ${SALVO_API_URL}. Is the Salvo engine running?`,
       0,
@@ -203,12 +220,18 @@ async function safeFetchRaw(endpoint: string, init?: RequestInit): Promise<Respo
 export const salvoClient = {
   async getHealth(): Promise<EngineHealth> {
     try {
-      const res = await fetch(`${SALVO_API_URL}/api/health`, { signal: AbortSignal.timeout(3000) });
-      if (!res.ok) return { status: "offline" };
-      return await res.json();
-    } catch {
-      return { status: "offline" };
+      const res = await fetch(`${SALVO_API_URL}/api/health`, { signal: AbortSignal.timeout(1500) });
+      if (res.ok) return await res.json();
+    } catch {}
+
+    if (typeof window !== "undefined") {
+      try {
+        const fallback = await fetch("/api/salvo/health", { signal: AbortSignal.timeout(1500) });
+        if (fallback.ok) return await fallback.json();
+      } catch {}
     }
+
+    return { status: "offline" };
   },
 
   async startScan(mode: "global" | "india" = "global") {

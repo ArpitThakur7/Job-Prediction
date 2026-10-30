@@ -1,0 +1,18 @@
+{
+  "accuracy": 0.8002167027837973,
+  "precision": 0.7792896876337184,
+  "recall": 0.8043459058387068,
+  "f1": 0.7916195775015213,
+  "auc_roc": 0.8896093608307127,
+  "cv_auc_mean": 0.8878018211381677,
+  "cv_auc_std": 0.0013905515995583939,
+  "ndcg_at_10": 0.9061913125787061,
+  "precision_at_10": 0.5386707153944649,
+  "ranking_groups": 2219,
+  "ranking_note": "NDCG@10 / P@10 grouped by resume_id over the test split; groups without a positive are skipped; P@10 divides by min(10, group size).",
+  "optimal_threshold": 0.4155511022044089,
+  "f1_at_optimal": 0.7981744835173791,
+  "n_train": 95981,
+  "n_test": 23996,
+  "positive_rate": 0.4717737566366887
+}

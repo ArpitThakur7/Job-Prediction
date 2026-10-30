@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from backend.services.matcher import match_resume_to_jobs, match_job_to_resumes
+from backend.services.matcher import match_resume_to_jobs, match_job_to_resumes, score_job_for_master_resume
 
 logger = logging.getLogger("backend.routes.match")
 
@@ -62,6 +62,32 @@ async def post_match_resume_to_jobs(payload: ResumeMatchRequest) -> Dict[str, An
         raise HTTPException(status_code=500, detail="Failed to calculate job matches") from exc
 
 
+class ScoreJobRequest(BaseModel):
+    title: str
+    description: str = ""
+    company: str = ""
+    location: str = ""
+    required_skills: List[str] = []
+
+
+@router.post("/match/score-job", response_model=Dict[str, Any])
+async def post_score_job(payload: ScoreJobRequest) -> Dict[str, Any]:
+    """
+    POST /match/score-job — score one posting against the master resume
+    (data/resume/resume.md). Used by the Salvo engine for every scanned job.
+    """
+    if len(payload.description) > 100_000:
+        raise HTTPException(status_code=413, detail="description too long")
+    try:
+        result = score_job_for_master_resume(payload.model_dump())
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("post_score_job failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to score job") from exc
+    return {"success": True, "data": result}
+
+
 class SparkBatchRequest(BaseModel):
     sample_size: int = 50
 
@@ -106,6 +132,7 @@ async def post_spark_batch_matching(payload: Optional[SparkBatchRequest] = None)
 
 
 @router.get("/match/resume/{resume_id}", response_model=Dict[str, Any])
+@router.get("/api/match/resume/{resume_id}", response_model=Dict[str, Any])
 async def get_jobs_for_resume(
     resume_id: str,
     top_k: int = Query(10, ge=1, le=50),

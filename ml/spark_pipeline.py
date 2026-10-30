@@ -1,5 +1,5 @@
 """
-Apache Spark Large-Scale Distributed Matching & Feature Extraction Pipeline - JOB-AI Platform
+Apache Spark Large-Scale Distributed Matching & Feature Extraction Pipeline - Fletch
 Processes high-volume job descriptions and candidate resumes using PySpark DataFrames and ML pipelines.
 """
 
@@ -13,7 +13,7 @@ from typing import Dict, List, Any
 logger = logging.getLogger("ml.spark_pipeline")
 
 
-def get_spark_session(master_url: str = "local[*]", app_name: str = "JOB-AI-Spark-Engine"):
+def get_spark_session(master_url: str = "local[*]", app_name: str = "Fletch-Spark-Engine"):
     """
     Initialize or retrieve PySpark Session.
 

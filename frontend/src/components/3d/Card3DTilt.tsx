@@ -59,7 +59,6 @@ export default function Card3DTilt({
   const handleMouseLeave = () => {
     setStyle({
       transform: "perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)",
-      boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
       transition: "transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.5s ease",
     });
     setGlarePosition((prev) => ({ ...prev, opacity: 0 }));

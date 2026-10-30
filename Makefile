@@ -47,12 +47,12 @@ format:
 	ruff format .
 
 typecheck:
-	mypy backend/ api/ ml/
+	mypy backend/ ml/
 
 # ── Running ───────────────────────────────────────────────────────────────────
 
 run-api:
-	uvicorn api.main:app --reload --port 8000
+	uvicorn backend.main:app --reload --port 8000
 
 run-backend:
 	uvicorn backend.main:app --reload --port 8000

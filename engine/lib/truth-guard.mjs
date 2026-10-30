@@ -53,29 +53,65 @@ export async function loadTrustedFactBank() {
  * Validates a tailored resume against the trusted fact bank.
  * Fails closed or sanitizes any ungrounded assertions.
  */
+function unverifiedNumber(text, factBank) {
+  return extractNumbers(text).find((num) => !factBank.trustedNumbers.has(num) && !['0', '1', '2'].includes(num));
+}
+
+function splitSentences(text) {
+  return String(text || '').match(/[^.!?\n]+[.!?]*\s*|\n+/g) || [];
+}
+
+/** Drop sentences that contain a number the fact bank can't back up. */
+function stripUnverifiedSentences(text, factBank, where, violations) {
+  return splitSentences(text)
+    .filter((sentence) => {
+      const num = unverifiedNumber(sentence, factBank);
+      if (num) violations.push(`Unverified metric "${num}" in ${where}: "${sentence.trim()}"`);
+      return !num;
+    })
+    .join('')
+    .trim();
+}
+
 export function verifyAndSanitizeResume(tailoredResume, factBank) {
   const violations = [];
   const sanitized = JSON.parse(JSON.stringify(tailoredResume));
+  const trustedTokens = ` ${factBank.normalizedTrusted} `;
 
-  // 1. Verify Experience
+  // 1. Experience: an employer that isn't in the master resume is dropped with all its bullets.
   if (Array.isArray(sanitized.experience)) {
-    for (const exp of sanitized.experience) {
+    sanitized.experience = sanitized.experience.filter((exp) => {
       const companyNorm = normalizeStr(exp.company || exp.employer);
       if (companyNorm && !factBank.normalizedTrusted.includes(companyNorm)) {
-        violations.push(`Unverified employer "${exp.company}" detected.`);
+        violations.push(`Unverified employer "${exp.company || exp.employer}" removed.`);
+        return false;
       }
       if (Array.isArray(exp.bullets)) {
         exp.bullets = exp.bullets.filter((bullet) => {
-          const numbers = extractNumbers(bullet);
-          for (const num of numbers) {
-            if (!factBank.trustedNumbers.has(num) && !['0', '1', '2'].includes(num)) {
-              violations.push(`Unverified metric "${num}" in experience: "${bullet}"`);
-              return false; // strip hallucinated bullet
-            }
-          }
-          return true;
+          const num = unverifiedNumber(bullet, factBank);
+          if (num) violations.push(`Unverified metric "${num}" in experience: "${bullet}"`);
+          return !num;
         });
       }
+      return true;
+    });
+  }
+
+  // 2. Summary: keep only sentences whose numbers are grounded.
+  if (sanitized.summary) {
+    sanitized.summary = stripUnverifiedSentences(sanitized.summary, factBank, 'summary', violations);
+  }
+
+  // 3. Skills: a skill must appear as a whole word somewhere in the fact bank.
+  if (sanitized.skills && typeof sanitized.skills === 'object') {
+    for (const [category, items] of Object.entries(sanitized.skills)) {
+      if (!Array.isArray(items)) continue;
+      sanitized.skills[category] = items.filter((skill) => {
+        const norm = normalizeStr(skill);
+        const known = !norm || trustedTokens.includes(` ${norm} `);
+        if (!known) violations.push(`Unverified skill "${skill}" removed.`);
+        return known;
+      });
     }
   }
 
@@ -92,14 +128,9 @@ export function verifyAndSanitizeResume(tailoredResume, factBank) {
 
       if (Array.isArray(proj.bullets)) {
         proj.bullets = proj.bullets.filter((b) => {
-          const numbers = extractNumbers(b);
-          for (const num of numbers) {
-            if (!factBank.trustedNumbers.has(num) && !['0', '1', '2'].includes(num)) {
-              violations.push(`Unverified metric "${num}" in project bullet: "${b}"`);
-              return false;
-            }
-          }
-          return true;
+          const num = unverifiedNumber(b, factBank);
+          if (num) violations.push(`Unverified metric "${num}" in project bullet: "${b}"`);
+          return !num;
         });
       }
       return true;
@@ -111,6 +142,22 @@ export function verifyAndSanitizeResume(tailoredResume, factBank) {
     violations,
     resume: sanitized,
   };
+}
+
+/**
+ * Same rule for the cover letter: sentences with numbers the fact bank can't
+ * back up are removed. (The target company's name is expected, so names aren't checked.)
+ * Numbers quoted from the job description itself are about the employer, so they're allowed.
+ */
+export function verifyAndSanitizeCoverLetter(text, factBank, { jobText = '' } = {}) {
+  const violations = [];
+  factBank = { ...factBank, trustedNumbers: new Set([...factBank.trustedNumbers, ...extractNumbers(jobText)]) };
+  const sanitized = String(text || '')
+    .split(/\n{2,}/)
+    .map((para) => stripUnverifiedSentences(para, factBank, 'cover letter', violations))
+    .filter(Boolean)
+    .join('\n\n');
+  return { verified: violations.length === 0, violations, text: sanitized };
 }
 
 /**

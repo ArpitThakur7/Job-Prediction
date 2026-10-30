@@ -1,1 +1,1 @@
-"""Tests package for JOB-AI-PLATFORM."""
+"""Tests package for Fletch."""

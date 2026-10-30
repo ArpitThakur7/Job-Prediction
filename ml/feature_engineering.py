@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Union
+import re
+from typing import Any, Dict, List, Optional, Set, Union
 
 import numpy as np
+
+from ml.skills import canonical_skill_set, extract_skills
+from ml.text_utils import strip_html
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +16,9 @@ def compute_skill_overlap(resume_skills: List[str], job_skills: List[str]) -> fl
     """
     Compute Jaccard similarity between resume and job skill sets.
 
+    Skills are normalised through the shared alias map (ml/skills.py), so
+    "JS" and "JavaScript" or "k8s" and "Kubernetes" count as the same skill.
+
     Args:
         resume_skills: List of skills extracted from the resume.
         job_skills: List of required skills from the job listing.
@@ -19,14 +26,8 @@ def compute_skill_overlap(resume_skills: List[str], job_skills: List[str]) -> fl
     Returns:
         Jaccard similarity in [0.0, 1.0].
     """
-    # Handle comma-separated strings from CSV
-    if isinstance(resume_skills, str):
-        resume_skills = [s.strip() for s in resume_skills.split(",")]
-    if isinstance(job_skills, str):
-        job_skills = [s.strip() for s in job_skills.split(",")]
-
-    resume_set = {s.strip().lower() for s in resume_skills if isinstance(s, str) and s.strip()}
-    job_set = {s.strip().lower() for s in job_skills if isinstance(s, str) and s.strip()}
+    resume_set = canonical_skill_set(resume_skills)
+    job_set = canonical_skill_set(job_skills)
 
     if not resume_set and not job_set:
         logger.debug("Both skill sets are empty — returning 0.0")
@@ -299,3 +300,290 @@ FEATURE_COLUMNS: List[str] = [
     "education_level_resume",
     "salary_match",
 ]
+
+# ─────────────────────────────────────────────
+# Fresher-aware Feature Extraction Helpers
+# ─────────────────────────────────────────────
+
+DOMAIN_EDU_KEYWORDS: Dict[str, List[str]] = {
+    "INFORMATION-TECHNOLOGY": ["computer", "software", "information", "data", "computing", "it ", "technology", "cyber"],
+    "ENGINEERING": ["engineer", "mechanical", "electrical", "civil", "electronics", "chemical"],
+    "FINANCE": ["finance", "economics", "commerce", "accounting", "business administration"],
+    "BUSINESS-DEVELOPMENT": ["business", "management", "mba", "commerce", "marketing"],
+    "SALES": ["marketing", "business", "commerce", "retail"],
+    "ACCOUNTANT": ["accounting", "commerce", "finance", "chartered"],
+    "CHEF": ["culinary", "hospitality", "food"],
+    "FITNESS": ["sports", "physical education", "kinesiology", "exercise"],
+    "ADVOCATE": ["law", "legal", "jurisprudence", "llb"],
+    "AVIATION": ["aviation", "aeronautical", "aerospace", "pilot"],
+}
+
+MODERN_SKILLS = {
+    "react", "next.js", "vue", "angular", "typescript", "docker", "kubernetes",
+    "aws", "azure", "google cloud", "terraform", "fastapi", "graphql",
+    "machine learning", "deep learning", "nlp", "computer vision",
+    "python", "go", "rust", "kotlin", "swift", "flutter",
+    "devops", "ci/cd", "github actions", "mongodb", "redis", "kafka",
+    "blockchain", "cybersecurity", "ai",
+}
+
+
+def count_project_keywords(text: str) -> int:
+    """Count project-related keywords in resume text (freshers demonstrate skills via projects)."""
+    if not isinstance(text, str):
+        return 0
+    text_lower = text.lower()
+    project_kw = [
+        "project", "capstone", "thesis", "hackathon", "portfolio",
+        "built", "developed", "created", "designed", "implemented",
+        "github", "open source", "contribution", "demo", "prototype",
+    ]
+    return min(10, sum(1 for kw in project_kw if kw in text_lower))
+
+
+def count_internship_mentions(text: str) -> int:
+    """Count internship-related mentions in resume text."""
+    if not isinstance(text, str):
+        return 0
+    text_lower = text.lower()
+    intern_kw = ["intern", "internship", "trainee", "apprentice", "co-op", "coop"]
+    return min(5, sum(1 for kw in intern_kw if kw in text_lower))
+
+
+def count_certifications(text: str) -> int:
+    """Count certification-related mentions in resume text."""
+    if not isinstance(text, str):
+        return 0
+    text_lower = text.lower()
+    cert_kw = [
+        "certified", "certification", "certificate", "aws certified",
+        "google certified", "azure certified", "pmp", "scrum master",
+        "comptia", "cisco", "oracle certified", "coursera", "udemy",
+        "edx", "nanodegree", "specialization",
+    ]
+    return min(5, sum(1 for kw in cert_kw if kw in text_lower))
+
+
+def compute_education_field_match(text: str, category: str) -> int:
+    """Check if education/resume text contains keywords matching the job domain/category."""
+    if not isinstance(text, str) or not isinstance(category, str):
+        return 0
+    text_lower = text.lower()
+    cat_upper = category.strip().upper()
+    domain_kws = DOMAIN_EDU_KEYWORDS.get(cat_upper, [])
+    return 1 if any(kw in text_lower for kw in domain_kws) else 0
+
+
+def compute_experience_adequacy(
+    resume_exp: float,
+    job_exp: float,
+    is_entry_level: bool,
+) -> float:
+    """
+    Compute non-linear experience adequacy score.
+    For entry-level roles (<=2 yrs), freshers (0-2 yrs) get full marks (1.0).
+    """
+    exp_gap = resume_exp - job_exp
+    if is_entry_level:
+        if resume_exp <= 2.0:
+            return 1.0
+        elif resume_exp <= 5.0:
+            return 0.7
+        else:
+            return 0.4
+    else:
+        if exp_gap >= 0.0:
+            return 1.0
+        elif exp_gap >= -2.0:
+            return 0.6
+        elif exp_gap >= -4.0:
+            return 0.3
+        else:
+            return 0.1
+
+
+def compute_skill_recency_score(skills: Union[List[str], str]) -> float:
+    """Compute proportion of modern/trending skills among candidate's skills."""
+    skill_set = canonical_skill_set(skills)
+    if not skill_set:
+        return 0.0
+    modern_count = len(skill_set & MODERN_SKILLS)
+    return round(modern_count / len(skill_set), 4)
+
+
+# ─────────────────────────────────────────────
+# Shared extraction helpers (moved here from scripts/prepare_dataset.py so the
+# dataset builder and the serving path compute features identically)
+# ─────────────────────────────────────────────
+
+EDUCATION_MAP: Dict[str, str] = {
+    "phd": "PhD", "doctorate": "PhD",
+    "master": "Masters", "mba": "Masters", "m.tech": "Masters",
+    "m.s.": "Masters", "msc": "Masters",
+    "bachelor": "Bachelors", "b.tech": "Bachelors", "b.s.": "Bachelors",
+    "b.e.": "Bachelors", "bsc": "Bachelors", "b.com": "Bachelors",
+    "associate": "Associate", "diploma": "Associate",
+    "high school": "High School", "secondary": "High School",
+}
+
+EDUCATION_SCORE: Dict[str, int] = {
+    "PhD": 5, "Masters": 4, "Bachelors": 3,
+    "Associate": 2, "High School": 1, "Not Specified": 0,
+}
+
+
+def extract_experience_years(text: str) -> int:
+    """Years of experience mentioned in text (ignores ages / DOB)."""
+    if not isinstance(text, str) or not text:
+        return 0
+    text_clean = re.sub(
+        r"(?i)\b(?:age|dob|date\s+of\s+birth|born)\s*[:=\-]?\s*\d+\s*(?:years?|yrs?)?\s*(?:old|of\s+age)?\b",
+        " ",
+        text,
+    )
+    text_clean = re.sub(r"(?i)\b\d+\s*(?:years?|yrs?)\s*(?:old|of\s+age)\b", " ", text_clean)
+    exp_matches = re.findall(
+        r"(?i)\b(\d+)\s*\+?\s*(?:years?|yrs?)\s+(?:of\s+)?(?:work\s+|professional\s+|relevant\s+)?experience\b",
+        text_clean,
+    )
+    if exp_matches:
+        valid_vals = [int(v) for v in exp_matches if 0 <= int(v) <= 45]
+        if valid_vals:
+            return max(valid_vals)
+    matches = re.findall(r"(\d+)\+?\s*years?\s*(of)?\s*(experience)?", text_clean, re.IGNORECASE)
+    if not matches:
+        return 0
+    valid_fallback = [int(m[0]) for m in matches if int(m[0]) < 18]
+    return max(valid_fallback) if valid_fallback else 0
+
+
+def extract_education(text: str) -> str:
+    """Highest-priority education level keyword found in text (EDUCATION_MAP order)."""
+    if not isinstance(text, str):
+        return "Not Specified"
+    text_lower = text.lower()
+    for keyword, level in EDUCATION_MAP.items():
+        if keyword in text_lower:
+            return level
+    return "Not Specified"
+
+
+def estimate_min_experience_from_title(title: str) -> float:
+    """Seniority heuristic used for live (Salvo) jobs that state no years explicitly."""
+    t = str(title or "").lower()
+    if "intern" in t or "trainee" in t:
+        return 0.0
+    if "junior" in t or "entry" in t or "associate" in t:
+        return 1.0
+    if "lead" in t or "principal" in t or "director" in t:
+        return 7.0
+    if "senior" in t or "sr." in t or "architect" in t:
+        return 5.0
+    return 2.0
+
+
+def _as_float(x: Any, default: Optional[float] = None) -> Optional[float]:
+    try:
+        if x is None or (isinstance(x, float) and np.isnan(x)):
+            return default
+        return float(x)
+    except (TypeError, ValueError):
+        return default
+
+
+def resume_skill_set(resume: Dict[str, Any]) -> Set[str]:
+    """Canonical skills of a resume: provided list ∪ skills found in its raw text."""
+    skills = canonical_skill_set(resume.get("skills"))
+    raw = resume.get("raw_text")
+    if isinstance(raw, str) and raw.strip():
+        skills |= canonical_skill_set(extract_skills(strip_html(raw)))
+    return skills
+
+
+def job_skill_set(job: Dict[str, Any]) -> Set[str]:
+    """Canonical skills of a job: provided required_skills ∪ skills found in its description."""
+    skills = canonical_skill_set(job.get("required_skills"))
+    desc = job.get("description")
+    if isinstance(desc, str) and desc.strip():
+        skills |= canonical_skill_set(extract_skills(strip_html(desc)))
+    return skills
+
+
+def compute_pair_features(
+    resume: Dict[str, Any],
+    job: Dict[str, Any],
+    semantic_similarity: float = 0.0,
+    tfidf_similarity: float = 0.0,
+    r_skills: Optional[Set[str]] = None,
+    j_skills: Optional[Set[str]] = None,
+) -> Dict[str, Any]:
+    """
+    THE feature function for a resume/job pair — used by scripts/prepare_dataset.py
+    (training data), backend/services/matcher.py (serving) and
+    ml/retrain_with_feedback.py (feedback rows), so all three agree.
+
+    resume keys: skills, raw_text, experience_years, education, location
+    job keys:    required_skills, description, title, location, category,
+                 experience_years | min_experience (optional; else parsed from description)
+
+    ``r_skills`` / ``j_skills`` may be passed pre-computed (canonical lower-case sets)
+    to avoid re-extracting in tight loops.
+    """
+    if r_skills is None:
+        r_skills = resume_skill_set(resume)
+    if j_skills is None:
+        j_skills = job_skill_set(job)
+
+    overlap_count = len(r_skills & j_skills)
+    overlap_ratio = overlap_count / max(len(j_skills), 1)
+
+    description = str(job.get("description") or "")
+    job_exp = _as_float(job.get("experience_years"))
+    if job_exp is None:
+        job_exp = _as_float(job.get("min_experience"))
+    if job_exp is None:
+        job_exp = float(extract_experience_years(description))
+    res_exp = _as_float(resume.get("experience_years"), 0.0) or 0.0
+    exp_gap = float(np.clip(res_exp - job_exp, -10, 10))
+
+    raw_text = str(resume.get("raw_text") or "")
+    edu_level = extract_education(str(resume.get("education") or ""))
+    if edu_level == "Not Specified" and raw_text:
+        edu_level = extract_education(raw_text)
+    edu_score = EDUCATION_SCORE.get(edu_level, 0)
+
+    res_loc = str(resume.get("location") or "").lower()  # unknown -> only remote jobs match
+    job_loc = str(job.get("location") or "Remote").lower()
+    r_parts = set(res_loc.replace(",", " ").split())
+    j_parts = set(job_loc.replace(",", " ").split())
+    location_match = 1 if "remote" in job_loc or r_parts.intersection(j_parts) else 0
+
+    res_text_lower = raw_text.lower()
+    job_title_words = set(str(job.get("title") or "").lower().split())
+    title_relevance = 1 if any(w in res_text_lower for w in job_title_words if len(w) > 3) else 0
+
+    is_entry_level_job = 1 if job_exp <= 2 else 0
+    job_cat = str(job.get("category") or "").strip().upper()
+
+    return {
+        "skill_overlap_count":   overlap_count,
+        "skill_overlap_ratio":   round(overlap_ratio, 4),
+        "experience_gap":        exp_gap,
+        "education_score":       edu_score,
+        "location_match":        location_match,
+        "title_relevance":       title_relevance,
+        "semantic_similarity":   round(float(semantic_similarity or 0.0), 4),
+        "tfidf_similarity":      round(float(tfidf_similarity or 0.0), 4),
+        "skills_count_resume":   len(r_skills),
+        "skills_count_job":      len(j_skills),
+        "is_entry_level_job":    is_entry_level_job,
+        "project_keyword_count": count_project_keywords(raw_text),
+        "internship_mentions":   count_internship_mentions(raw_text),
+        "certification_count":   count_certifications(raw_text),
+        "education_field_match": compute_education_field_match(raw_text, job_cat),
+        "experience_adequacy":   round(compute_experience_adequacy(res_exp, job_exp, bool(is_entry_level_job)), 2),
+        "skill_recency_score":   compute_skill_recency_score(list(r_skills)),
+        # bookkeeping (not model features)
+        "resume_experience_years": res_exp,
+        "job_experience_required": job_exp,
+    }

@@ -1,5 +1,5 @@
 """
-Apache Kafka Producer Service - JOB-AI Platform
+Apache Kafka Producer Service - Fletch
 Streams real-time events for candidate resume processing, job creation, and match score computation.
 Includes graceful fallback logging when Kafka cluster is unreachable.
 """

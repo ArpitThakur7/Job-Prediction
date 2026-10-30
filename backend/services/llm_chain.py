@@ -335,7 +335,7 @@ def ask_question(
 
     # Build prompt with explicit conversation history + RAG context
     system_prompt = (
-        "You are a helpful AI career coach and job search assistant for the JOB-AI Platform. "
+        "You are a helpful AI career coach and job search assistant for Fletch. "
         "You have access to relevant document context from the knowledge base and the full "
         "conversation history with the user.\n\n"
         "IMPORTANT RULES:\n"
@@ -411,7 +411,7 @@ def ask_question(
         local_answer = f"Today is **{date_str}** ({time_str}).\n\nHow can I help you with your resume analysis, job matching, or career strategy today?"
     elif any(k in ql for k in ["hello", "hi", "hey", "greetings", "who are you", "what can you do", "help"]):
         local_answer = (
-            "Hello! I am your **JOB-AI Career Coach & Intelligent Assistant**.\n\n"
+            "Hello! I am your **Fletch Career Coach**.\n\n"
             "I can assist you with:\n"
             "• **Resume Optimization**: Tailoring your CV for ATS screening.\n"
             "• **Job Compatibility**: Matching your skills against available positions.\n"

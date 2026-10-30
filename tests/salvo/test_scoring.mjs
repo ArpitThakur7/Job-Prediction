@@ -58,3 +58,14 @@ test('scoreJobCombined blends deterministic score with prediction score', async 
   assert.ok(combined.predictionScore >= 0 && combined.predictionScore <= 100);
   assert.ok(typeof combined.verdict === 'string');
 });
+
+test('ML prediction reports "heuristic" when the prediction API is unreachable', async () => {
+  const { fetchMlPrediction } = await import('../../engine/lib/scoring.mjs');
+  const res = await fetchMlPrediction(
+    { title: 'Backend Engineer', description: 'Python and React', location: 'Remote' },
+    null,
+    'http://127.0.0.1:9' // nothing listens here
+  );
+  assert.equal(res.source, 'heuristic');
+  assert.ok(res.score >= 0 && res.score <= 100);
+});

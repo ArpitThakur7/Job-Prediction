@@ -1,3 +1,3 @@
 """
-FastAPI routers for JOB-AI-PLATFORM.
+FastAPI routers for Fletch.
 """

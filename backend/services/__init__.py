@@ -1,3 +1,3 @@
 """
-Service layer for JOB-AI-PLATFORM.
+Service layer for Fletch.
 """

@@ -1,5 +1,5 @@
 """
-Apache Kafka Consumer Service - JOB-AI Platform
+Apache Kafka Consumer Service - Fletch
 Listens to event streams from Kafka topics and processes candidate/job updates asynchronously.
 """
 

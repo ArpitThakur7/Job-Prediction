@@ -1,3 +1,3 @@
 """
-JOB-AI-PLATFORM backend package.
+Fletch backend package.
 """

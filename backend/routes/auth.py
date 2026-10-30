@@ -22,6 +22,7 @@ except ImportError:
 from backend.config import settings
 from backend.database import get_collection
 from backend.models.user import Token, UserCreate, UserResponse, LoginRequest, ResetPasswordRequest
+from backend.services.rate_limit import limit_auth
 
 logger = logging.getLogger("backend.routes.auth")
 
@@ -103,8 +104,9 @@ async def _get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, An
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
         users_col = get_collection("users")
         if users_col is None:
-            # Local in-memory mock user if MongoDB is offline in local dev
-            return {"id": "local_dev_user", "email": email, "role": "recruiter"}
+            # MongoDB offline in local dev: trust only what the signed token says,
+            # never grant a higher role than it carries.
+            return {"id": payload.get("id", "local_dev_user"), "email": email, "role": payload.get("role", "job_seeker")}
         user = users_col.find_one({"email": email})
         if not user:
             if "role" in payload:
@@ -147,7 +149,7 @@ def require_role(allowed_roles: List[str]):
 
 
 # ─── REGISTER ───────────────────────────────────────────────────────────────
-@router.post("/register", response_model=UserResponse)
+@router.post("/register", response_model=UserResponse, dependencies=[Depends(limit_auth)])
 async def register(user: UserCreate) -> UserResponse:
     try:
         users_col = get_collection("users")
@@ -186,7 +188,7 @@ async def register(user: UserCreate) -> UserResponse:
 
 
 # ─── LOGIN (OAuth2 form-data) ───────────────────────────────────────────────
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=Token, dependencies=[Depends(limit_auth)])
 async def login(form_data: OAuth2PasswordRequestForm = Depends()) -> Token:
     try:
         users_col = get_collection("users")
@@ -204,7 +206,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()) -> Token:
 
 
 # ─── LOGIN-JSON (JSON body) ─────────────────────────────────────────────────
-@router.post("/login-json", response_model=Token)
+@router.post("/login-json", response_model=Token, dependencies=[Depends(limit_auth)])
 async def login_json(payload: LoginRequest) -> Token:
     try:
         users_col = get_collection("users")
@@ -222,13 +224,15 @@ async def login_json(payload: LoginRequest) -> Token:
 
 
 # ─── RESET PASSWORD ─────────────────────────────────────────────────────────
-@router.post("/reset-password", response_model=Token)
+@router.post("/reset-password", response_model=Token, dependencies=[Depends(limit_auth)])
 async def reset_password(payload: ResetPasswordRequest) -> Token:
+    """Change a password. Requires the current password (same check as login)."""
     try:
         users_col = get_collection("users")
         user = _find_user_by_email(users_col, payload.email)
-        if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No account registered with this email.")
+        # One message for "no such user" and "wrong password", so emails can't be enumerated.
+        if not user or not _verify_password(payload.current_password, user.get("hashed_password") or ""):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
         new_hash = _create_password_hash(payload.new_password)
         if users_col is not None and "_id" in user:
             users_col.update_one({"_id": user["_id"]}, {"$set": {"hashed_password": new_hash}})

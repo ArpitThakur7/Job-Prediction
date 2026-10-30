@@ -111,6 +111,55 @@ async def create_job(
         raise HTTPException(status_code=500, detail="Failed to create job") from exc
 
 
+def _load_salvo_pipeline_jobs(limit: int = 50, skip: int = 0) -> List[JobResponse]:
+    """Load live scraped jobs from Salvo pipeline files (pipeline.json & pipeline-india.json)."""
+    import os, json
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
+    all_jobs: List[JobResponse] = []
+    seen_urls = set()
+
+    for fname in ["pipeline.json", "pipeline-india.json"]:
+        fpath = root / "data" / fname
+        if fpath.exists():
+            try:
+                with open(fpath, encoding="utf-8") as f:
+                    p = json.load(f)
+                    for j in p.get("jobs", []):
+                        url = str(j.get("url") or "")
+                        if url and url in seen_urls:
+                            continue
+                        seen_urls.add(url)
+
+                        reasons = j.get("reasons") or []
+                        skills = [r.replace("+", "").strip() for r in reasons if r.startswith("+")]
+                        if not skills:
+                            skills = ["TypeScript", "React", "Python", "Cloud"]
+
+                        all_jobs.append(
+                            JobResponse(
+                                job_id=str(url or uuid.uuid4()),
+                                title=str(j.get("title") or "Software Engineer"),
+                                description=str(j.get("description") or "Live scraped opportunity"),
+                                company=str(j.get("company") or "Tech Company"),
+                                location=str(j.get("location") or "Remote"),
+                                required_skills=skills,
+                                salary_min=105000,
+                                salary_max=175000,
+                                job_type="FULL_TIME",
+                                category="Engineering",
+                                industry=str(j.get("source") or "Live Web Scrape"),
+                                posted_by="salvo-live-scraper",
+                                created_at=datetime.utcnow(),
+                                is_active=True,
+                            )
+                        )
+            except Exception as err:
+                logger.debug("Failed loading %s: %s", fname, err)
+
+    return all_jobs[skip : skip + limit]
+
+
 @router.get("/jobs/", response_model=List[JobResponse])
 async def list_jobs(
     location: Optional[str] = Query(default=None),
@@ -121,9 +170,14 @@ async def list_jobs(
     skip: int = Query(default=0, ge=0),
 ) -> List[JobResponse]:
     """
-    List jobs with optional filters and safe pagination (default limit 50, max 200).
-    Cache results in Redis (TTL 300s).
+    List live jobs with optional filters and safe pagination.
+    Prioritizes real-time Salvo pipeline jobs fetched from live websites over offline training data.
     """
+    # 1. First priority: live Salvo pipeline scraped positions
+    salvo_jobs = _load_salvo_pipeline_jobs(limit=limit, skip=skip)
+    if salvo_jobs:
+        return salvo_jobs
+
     from backend.redis_client import cache_get, cache_set
 
     cache_key = f"jobs:list:{location or ''}:{category or ''}:{salary_min or ''}:{salary_max or ''}:{limit}:{skip}"

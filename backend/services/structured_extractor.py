@@ -1,5 +1,5 @@
 """
-Phase 2 — Structured Extraction (Groq Llama 3.3 70B & Fallback) - JOB-AI Platform
+Phase 2 — Structured Extraction (Groq Llama 3.3 70B & Fallback) - Fletch
 Extracts structured JSON resume attributes matching strict Pydantic schemas.
 Calculates bullet quantification and detects present vs missing standard sections.
 """
@@ -121,8 +121,12 @@ def extract_structured_resume_fallback(raw_text: str) -> StructuredResumeSchema:
     logger.info("Executing rule-based deterministic fallback structured extraction.")
     nlp_data = parse_resume_text_fallback(raw_text)
 
+    from backend.services.nlp_extractor import _clean_candidate_name
+    raw_cand_name = str(nlp_data.get("name") or nlp_data.get("candidate_name") or "")
+    clean_name = _clean_candidate_name(raw_cand_name, raw_text)
+
     contact = ContactInfo(
-        name=str(nlp_data.get("name") or nlp_data.get("candidate_name") or ""),
+        name=clean_name,
         email=str(nlp_data.get("email") or ""),
         phone=str(nlp_data.get("phone") or ""),
         location=str(nlp_data.get("location") or ""),

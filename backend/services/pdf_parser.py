@@ -230,22 +230,9 @@ def parse_resume_file(file_bytes: bytes) -> Dict[str, Any]:
         "Next.js",
     ]
 
-    matched_skills = []
-    lower_text = text.lower()
-    has_dotnet = bool(re.search(r"(\.net|dotnet|\basp\.net)\b", lower_text))
-    has_mern = bool(re.search(r"\bmern(\s+stack)?\b", lower_text))
-
-    for s in skills_list:
-        if s == ".NET":
-            if has_dotnet and ".NET" not in matched_skills:
-                matched_skills.append(".NET")
-            continue
-        if s in ("MERN", "MERN Stack"):
-            if has_mern and s not in matched_skills:
-                matched_skills.append(s)
-            continue
-        if s.lower() in lower_text:
-            matched_skills.append(s)
+    # Shared token-boundary matcher (ml/skills.py) — no substring false positives.
+    from ml.skills import extract_skills as shared_extract_skills
+    matched_skills = shared_extract_skills(text, skills_list)
 
     experience_years = extract_experience_years(text)
 

@@ -1,294 +1,477 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { LayoutGrid, List, Radar, RefreshCw, SlidersHorizontal, X } from "lucide-react";
 import { salvoClient, SalvoJob, SalvoApiError } from "@/lib/salvoClient";
+import { isEarlyCareer, isRemote, isSenior, jobScore, jobSource } from "@/lib/jobScore";
+import { sendFeedback } from "@/lib/feedback";
 import JobCard3D from "@/components/salvo/JobCard3D";
+import JobRowList from "@/components/salvo/JobRowList";
+import JobPreviewDrawer from "@/components/salvo/JobPreviewDrawer";
 import ScanModal from "@/components/salvo/ScanModal";
 import TailorModal from "@/components/salvo/TailorModal";
+import ApplyModal from "@/components/salvo/ApplyModal";
 import SalvoConnectionGuard from "@/components/salvo/SalvoConnectionGuard";
+import FilterRail, { defaultFilters, Filters, Market, topics } from "@/components/salvo/FilterRail";
 import { useToast } from "@/context/ToastContext";
+
+type ViewMode = "grid" | "list";
+type SortBy = "fit" | "newest" | "company";
+
+const SAVED_KEY = "salvo_saved_job_urls";
+const HIDDEN_KEY = "salvo_dismissed_job_urls";
+const PAGE_SIZE = 18;
+
+function loadSet(key: string) {
+  try {
+    const raw = localStorage.getItem(key);
+    return new Set<string>(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set<string>();
+  }
+}
+
+function storeSet(key: string, set: Set<string>) {
+  try {
+    localStorage.setItem(key, JSON.stringify([...set]));
+  } catch {}
+}
 
 export default function JobsPage() {
   const { addToast } = useToast();
-  const [jobs, setJobs] = useState<SalvoJob[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState<"global" | "india">("global");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sourceFilter, setSourceFilter] = useState("");
-  const [minScore, setMinScore] = useState(0);
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [scannedAt, setScannedAt] = useState<string | null>(null);
-  const [isScanOpen, setIsScanOpen] = useState(false);
-  const [selectedJobForTailor, setSelectedJobForTailor] = useState<SalvoJob | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  const fetchJobs = async () => {
-    setLoading(true);
-    try {
-      const data = await salvoClient.getJobs({
-        mode,
-        query: searchQuery,
-        source: sourceFilter,
-        minScore,
-        page,
-        limit: 18,
-      });
-      setJobs(data.jobs || []);
-      setTotal(data.total || 0);
-      setScannedAt(data.scannedAt || null);
-    } catch (err: any) {
-      if (err instanceof SalvoApiError && err.isOffline) {
-        setJobs([]);
-      } else {
-        addToast({ type: "error", title: "Failed to load jobs", message: err.message });
-        setJobs([]);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [allJobs, setAllJobs] = useState<SalvoJob[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [scannedAt, setScannedAt] = useState<string | null>(null);
+
+  const [market, setMarket] = useState<Market>("global");
+  const [filters, setFilters] = useState<Filters>(defaultFilters);
+  const [query, setQuery] = useState("");
+  const [sortBy, setSortBy] = useState<SortBy>("fit");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [page, setPage] = useState(1);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const [saved, setSaved] = useState<Set<string>>(new Set());
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+
+  const [previewJob, setPreviewJob] = useState<SalvoJob | null>(null);
+  const [tailorJob, setTailorJob] = useState<SalvoJob | null>(null);
+  const [applyJob, setApplyJob] = useState<SalvoJob | null>(null);
+  const [scanOpen, setScanOpen] = useState(false);
+  const focusUrl = useRef<string | null>(null);
+
+  // Browser-only state (localStorage, URL) is read after hydration so the static HTML matches.
+  // Links from the home page: ?focus=<job url> opens a job, ?scan=1 opens the scanner.
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setSaved(loadSet(SAVED_KEY));
+    setHidden(loadSet(HIDDEN_KEY));
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("scan") === "1") setScanOpen(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+    focusUrl.current = params.get("focus");
+  }, []);
+
+  // Debounce typing into the search box.
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(filters.query.trim().toLowerCase()), 200);
+    return () => clearTimeout(t);
+  }, [filters.query]);
 
   useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+      if (e.key === "/" && !typing) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const fetchJobs = useCallback(
+    async (manual = false) => {
+      if (manual) setRefreshing(true);
+      else setLoading(true);
+      try {
+        const data = await salvoClient.getJobs({ mode: market === "india" ? "india" : "global", limit: 150 });
+        const jobs: SalvoJob[] = (data.jobs || []).filter((j: SalvoJob) => !j.blocked);
+        setAllJobs(jobs);
+        setScannedAt(data.scannedAt || null);
+        if (focusUrl.current) {
+          const match = jobs.find((j) => j.url === focusUrl.current);
+          if (match) setPreviewJob(match);
+          focusUrl.current = null;
+        }
+        if (manual) addToast({ type: "success", title: "Feed refreshed", message: `${jobs.length} jobs loaded.` });
+      } catch (err) {
+        if (!(err instanceof SalvoApiError && err.isOffline)) {
+          addToast({ type: "error", title: "Couldn't load jobs", message: err instanceof Error ? err.message : String(err) });
+        }
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [market, addToast]
+  );
+
+  // Refetch only when switching between the global and India pipelines; "saved" filters locally.
+  const pipeline = market === "india" ? "india" : "global";
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading data from the engine is the effect's job
     fetchJobs();
-  }, [mode, searchQuery, sourceFilter, minScore, page]);
+  }, [pipeline]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const updateFilters = (next: Partial<Filters>) => {
+    setFilters((f) => ({ ...f, ...next }));
+    setPage(1);
+  };
+  const resetFilters = () => {
+    setFilters(defaultFilters);
+    setPage(1);
+  };
+
+  const toggleSave = useCallback(
+    (job: SalvoJob) => {
+      setSaved((prev) => {
+        const next = new Set(prev);
+        if (next.has(job.url)) {
+          next.delete(job.url);
+          addToast({ type: "info", title: "Removed from saved", message: job.title });
+        } else {
+          next.add(job.url);
+          sendFeedback(job, "save");
+          addToast({ type: "success", title: "Saved", message: `${job.title} at ${job.company}` });
+        }
+        storeSet(SAVED_KEY, next);
+        return next;
+      });
+    },
+    [addToast]
+  );
+
+  const toggleHidden = useCallback(
+    (job: SalvoJob) => {
+      setHidden((prev) => {
+        const next = new Set(prev);
+        if (next.has(job.url)) {
+          next.delete(job.url);
+        } else {
+          next.add(job.url);
+          sendFeedback(job, "dismiss");
+          addToast({ type: "info", title: "Hidden from your feed", message: "Salvo will learn from this." });
+        }
+        storeSet(HIDDEN_KEY, next);
+        return next;
+      });
+    },
+    [addToast]
+  );
+
+  const openApply = (job: SalvoJob) => setApplyJob(job);
+
+  // Jobs in the current market, before the panel filters — used for the histogram and board counts.
+  const marketJobs = useMemo(
+    () => (market === "saved" ? allJobs.filter((j) => saved.has(j.url)) : allJobs),
+    [allJobs, market, saved]
+  );
+
+  const results = useMemo(() => {
+    const topic = topics.find((t) => t.id === filters.topic);
+    const list = marketJobs.filter((j) => {
+      if (!filters.showHidden && hidden.has(j.url)) return false;
+      if (jobScore(j) < filters.minFit) return false;
+      if (filters.sources.length && !filters.sources.includes(jobSource(j))) return false;
+      if (filters.level === "early" && !isEarlyCareer(j)) return false;
+      if (filters.level === "senior" && !isSenior(j)) return false;
+      if (filters.remoteOnly && !isRemote(j)) return false;
+      const text = `${j.title} ${j.company} ${j.location} ${j.description || ""} ${(j.reasons || []).join(" ")}`;
+      if (topic && !topic.pattern.test(text)) return false;
+      if (query && !text.toLowerCase().includes(query)) return false;
+      return true;
+    });
+    return list.sort((a, b) => {
+      if (sortBy === "newest") return (b.postedAt || 0) - (a.postedAt || 0);
+      if (sortBy === "company") return (a.company || "").localeCompare(b.company || "");
+      return jobScore(b) - jobScore(a);
+    });
+  }, [marketJobs, filters, query, sortBy, hidden]);
+
+  const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+  const pageJobs = results.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const hiddenCount = marketJobs.filter((j) => hidden.has(j.url)).length;
+
+  const chips: { label: string; clear: () => void }[] = [];
+  if (filters.query) chips.push({ label: `“${filters.query}”`, clear: () => updateFilters({ query: "" }) });
+  if (filters.minFit) chips.push({ label: `Fit ${filters.minFit}%+`, clear: () => updateFilters({ minFit: 0 }) });
+  if (filters.level !== "any") chips.push({ label: filters.level === "early" ? "Early career" : "Senior", clear: () => updateFilters({ level: "any" }) });
+  if (filters.remoteOnly) chips.push({ label: "Remote only", clear: () => updateFilters({ remoteOnly: false }) });
+  if (filters.topic) chips.push({ label: topics.find((t) => t.id === filters.topic)!.label, clear: () => updateFilters({ topic: "" }) });
+  filters.sources.forEach((s) => chips.push({ label: s.charAt(0).toUpperCase() + s.slice(1).replace(/-/g, " "), clear: () => updateFilters({ sources: filters.sources.filter((x) => x !== s) }) }));
+
+  const rail = (
+    <FilterRail
+      jobs={marketJobs}
+      filters={filters}
+      onChange={updateFilters}
+      onReset={resetFilters}
+      market={market}
+      onMarket={(m) => {
+        setMarket(m);
+        setPage(1);
+      }}
+      savedCount={saved.size}
+      hiddenCount={hiddenCount}
+      searchRef={searchRef}
+    />
+  );
 
   return (
     <SalvoConnectionGuard>
-      <div className="space-y-6 max-w-7xl mx-auto pb-12">
-        {/* Top Banner & Control Deck */}
-        <div className="p-6 md:p-8 rounded-3xl border border-slate-200/90 dark:border-white/10 bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-5">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="text-2xl">⚡</span>
-              <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-                Salvo Agentic Job Feed
-              </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold border border-cyan-500/30 text-cyan-700 dark:text-cyan-300 bg-cyan-50 dark:bg-cyan-500/10">
-                ZERO-AUTH DISCOVERY
-              </span>
-            </div>
-            <p className="text-xs text-slate-600 dark:text-slate-400 font-mono">
-              Unauthenticated public endpoints · Rule-based triage + XGBoost ML signal · Never automated submit
-              {scannedAt && (
-                <span className="ml-2 font-semibold text-slate-700 dark:text-slate-300">
-                  · Last scan: {new Date(scannedAt).toLocaleString()}
-                </span>
-              )}
-            </p>
-          </div>
+      <div className="max-w-[1400px] mx-auto grid lg:grid-cols-[300px_minmax(0,1fr)] gap-6 items-start">
+        <aside className="glass rounded-[28px] p-5 hidden lg:block sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto" aria-label="Filters">
+          {rail}
+        </aside>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex p-1 rounded-2xl bg-slate-100 dark:bg-black/40 border border-slate-300 dark:border-white/10 text-xs font-mono">
-              <button
-                onClick={() => {
-                  setMode("global");
-                  setPage(1);
-                }}
-                className={`px-3.5 py-1.5 rounded-xl transition-all ${
-                  mode === "global"
-                    ? "bg-cyan-500 text-slate-950 font-bold shadow-md"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                }`}
-              >
-                🌐 Global Remote
-              </button>
-              <button
-                onClick={() => {
-                  setMode("india");
-                  setPage(1);
-                }}
-                className={`px-3.5 py-1.5 rounded-xl transition-all ${
-                  mode === "india"
-                    ? "bg-emerald-500 text-slate-950 font-bold shadow-md"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                }`}
-              >
-                🇮🇳 India Market
-              </button>
+        <section className="space-y-5 min-w-0">
+          {/* Toolbar */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="mr-auto">
+              <p className="font-display text-2xl font-bold tabular">
+                {loading ? "Loading jobs…" : `${results.length} ${results.length === 1 ? "job" : "jobs"}`}
+              </p>
+              <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>
+                {market === "saved" ? "Your saved jobs" : market === "india" ? "India market" : "Global and remote"}
+                {scannedAt && `, last scan ${new Date(scannedAt).toLocaleDateString()}`}
+              </p>
             </div>
 
             <button
-              onClick={() => setIsScanOpen(true)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold font-mono text-xs bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-md hover:shadow-cyan-500/30 transition-all hover:scale-105"
+              onClick={() => setSheetOpen(true)}
+              className="lg:hidden glass inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold"
             >
-              <span>📡</span> Scan Boards Now
+              <SlidersHorizontal size={16} /> Filters{chips.length ? ` (${chips.length})` : ""}
             </button>
-          </div>
-        </div>
 
-        {/* Filter and Search Bar */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div className="md:col-span-2 relative">
-            <input
-              type="text"
-              placeholder="Search roles, companies, or keywords (e.g. React, Node, Python)..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setPage(1);
-              }}
-              className="w-full pl-10 pr-4 py-3 rounded-2xl text-xs font-mono bg-white dark:bg-black/40 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 shadow-sm transition-all"
-            />
-            <span className="absolute left-3.5 top-3.5 text-slate-400 dark:text-slate-500 text-sm">🔍</span>
-          </div>
+            <label className="glass inline-flex items-center gap-2 pl-4 pr-2 py-1.5 rounded-2xl text-sm">
+              <span style={{ color: "var(--theme-text-muted)" }}>Sort</span>
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)} className="bg-transparent font-semibold py-1 outline-none">
+                <option value="fit">Best fit</option>
+                <option value="newest">Newest</option>
+                <option value="company">Company A–Z</option>
+              </select>
+            </label>
 
-          <div>
-            <select
-              value={sourceFilter}
-              onChange={(e) => {
-                setSourceFilter(e.target.value);
-                setPage(1);
-              }}
-              className="w-full px-4 py-3 rounded-2xl text-xs font-mono bg-white dark:bg-black/40 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-cyan-500 shadow-sm transition-all"
-            >
-              <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                All Sources (Greenhouse, Lever, etc.)
-              </option>
-              <option value="greenhouse" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                Greenhouse
-              </option>
-              <option value="ashby" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                Ashby
-              </option>
-              <option value="lever" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                Lever
-              </option>
-              <option value="unstop" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                Unstop (India)
-              </option>
-              <option value="remoteok" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                RemoteOK
-              </option>
-              <option value="remotive" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                Remotive
-              </option>
-              <option value="hn-hiring" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                Hacker News
-              </option>
-            </select>
-          </div>
-
-          <div>
-            <select
-              value={minScore}
-              onChange={(e) => {
-                setMinScore(Number(e.target.value));
-                setPage(1);
-              }}
-              className="w-full px-4 py-3 rounded-2xl text-xs font-mono bg-white dark:bg-black/40 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-cyan-500 shadow-sm transition-all"
-            >
-              <option value="0" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                All Match Scores
-              </option>
-              <option value="50" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                Match Score ≥ 50%
-              </option>
-              <option value="60" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                Match Score ≥ 60%
-              </option>
-              <option value="75" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                Match Score ≥ 75%
-              </option>
-              <option value="85" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                High Confidence ≥ 85%
-              </option>
-            </select>
-          </div>
-        </div>
-
-        {/* Results Summary */}
-        {!loading && jobs.length > 0 && (
-          <div className="flex items-center justify-between text-xs font-mono text-slate-600 dark:text-slate-400 px-1">
-            <span>
-              Showing <strong className="text-slate-900 dark:text-white">{jobs.length}</strong> of{" "}
-              <strong className="text-slate-900 dark:text-white">{total}</strong> matched postings (page {page})
-            </span>
-            <span className="font-semibold text-cyan-700 dark:text-cyan-400">
-              {mode === "india" ? "🇮🇳 India Market" : "🌐 Global Remote"}
-            </span>
-          </div>
-        )}
-
-        {/* Grid of 3D Cards */}
-        {loading ? (
-          <div className="py-24 flex flex-col items-center justify-center space-y-3">
-            <div className="w-10 h-10 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
-            <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
-              Loading scored postings...
-            </span>
-          </div>
-        ) : jobs.length > 0 ? (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {jobs.map((job) => (
-                <JobCard3D
-                  key={job.url}
-                  job={job}
-                  onTailorClick={(j) => setSelectedJobForTailor(j)}
-                />
+            <div className="glass inline-flex p-1 rounded-2xl" role="group" aria-label="Layout">
+              {(
+                [
+                  ["grid", LayoutGrid, "Cards"],
+                  ["list", List, "List"],
+                ] as const
+              ).map(([id, Icon, label]) => (
+                <button
+                  key={id}
+                  onClick={() => setViewMode(id)}
+                  aria-pressed={viewMode === id}
+                  title={label}
+                  className={`p-2 rounded-xl transition-colors ${viewMode === id ? "bg-white dark:bg-white/15 shadow-sm" : "opacity-60 hover:opacity-100"}`}
+                >
+                  <Icon size={18} />
+                  <span className="sr-only">{label}</span>
+                </button>
               ))}
             </div>
 
-            {/* Pagination */}
-            {total > 18 && (
-              <div className="flex items-center justify-center gap-3 pt-6 font-mono text-xs">
-                <button
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="px-4 py-2 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors shadow-sm"
-                >
-                  ← Previous
-                </button>
-                <span className="text-slate-600 dark:text-slate-400 font-bold px-2">
-                  Page {page} of {Math.ceil(total / 18)}
-                </span>
-                <button
-                  disabled={page >= Math.ceil(total / 18)}
-                  onClick={() => setPage((p) => p + 1)}
-                  className="px-4 py-2 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors shadow-sm"
-                >
-                  Next →
-                </button>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="p-12 rounded-3xl border border-dashed border-slate-300 dark:border-white/10 bg-white/80 dark:bg-slate-900/40 text-center space-y-4 shadow-sm">
-            <span className="text-4xl block">📡</span>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">No postings matching criteria</h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 font-mono max-w-md mx-auto">
-              Try adjusting your search query, lowering the minimum match score, or launching a live discovery scan.
-            </p>
             <button
-              onClick={() => setIsScanOpen(true)}
-              className="px-5 py-2.5 rounded-xl text-xs font-mono font-bold bg-cyan-500 text-slate-950 hover:bg-cyan-400 transition-all shadow-md"
+              onClick={() => fetchJobs(true)}
+              disabled={refreshing}
+              className="glass p-2.5 rounded-2xl disabled:opacity-50"
+              title="Refresh feed"
+              aria-label="Refresh feed"
             >
-              Launch Discovery Scan
+              <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
+            </button>
+
+            <button
+              onClick={() => setScanOpen(true)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold text-white transition-transform hover:-translate-y-0.5"
+              style={{ background: "var(--theme-primary)" }}
+            >
+              <Radar size={16} /> Scan boards
             </button>
           </div>
-        )}
 
-        {/* Modals */}
-        <ScanModal
-          isOpen={isScanOpen}
-          onClose={() => setIsScanOpen(false)}
-          onScanComplete={() => {
-            setIsScanOpen(false);
-            fetchJobs();
-            addToast({
-              type: "success",
-              title: "Scan Complete",
-              message: "Pipeline updated and synced to Excel tracker.",
-            });
-          }}
-        />
+          {chips.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              {chips.map((c) => (
+                <button
+                  key={c.label}
+                  onClick={c.clear}
+                  className="inline-flex items-center gap-1.5 pl-3 pr-2 py-1 rounded-full text-sm font-medium"
+                  style={{ background: "var(--theme-badge-bg)", color: "var(--theme-badge-text)" }}
+                  aria-label={`Remove filter ${c.label}`}
+                >
+                  {c.label} <X size={14} />
+                </button>
+              ))}
+              <button onClick={resetFilters} className="text-sm font-semibold px-2" style={{ color: "var(--theme-text-muted)" }}>
+                Clear all
+              </button>
+            </div>
+          )}
 
-        <TailorModal
-          job={selectedJobForTailor}
-          isOpen={!!selectedJobForTailor}
-          onClose={() => setSelectedJobForTailor(null)}
-        />
+          {loading ? (
+            <div className="grid md:grid-cols-2 2xl:grid-cols-3 gap-5">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="glass rounded-[28px] h-[290px] animate-pulse" />
+              ))}
+            </div>
+          ) : pageJobs.length > 0 ? (
+            <>
+              {viewMode === "grid" ? (
+                <div className="grid md:grid-cols-2 2xl:grid-cols-3 gap-5">
+                  {pageJobs.map((job) => (
+                    <JobCard3D
+                      key={job.url}
+                      job={job}
+                      onSelect={setPreviewJob}
+                      onTailorClick={setTailorJob}
+                      onApplyClick={openApply}
+                      onToggleSave={toggleSave}
+                      onDismiss={toggleHidden}
+                      isSaved={saved.has(job.url)}
+                      isDismissed={hidden.has(job.url)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="glass rounded-[28px] overflow-hidden">
+                  <JobRowList
+                    jobs={pageJobs}
+                    onSelectJob={setPreviewJob}
+                    onTailorClick={setTailorJob}
+                    onApplyClick={openApply}
+                    onToggleSave={toggleSave}
+                    savedUrls={saved}
+                  />
+                </div>
+              )}
+
+              {totalPages > 1 && (
+                <nav className="flex items-center justify-center gap-3 pt-4" aria-label="Pages">
+                  <button
+                    disabled={page <= 1}
+                    onClick={() => {
+                      setPage((p) => p - 1);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="glass px-4 py-2 rounded-2xl text-sm font-semibold disabled:opacity-40"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm tabular" style={{ color: "var(--theme-text-muted)" }}>
+                    Page {page} of {totalPages}
+                  </span>
+                  <button
+                    disabled={page >= totalPages}
+                    onClick={() => {
+                      setPage((p) => p + 1);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="glass px-4 py-2 rounded-2xl text-sm font-semibold disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </nav>
+              )}
+            </>
+          ) : (
+            <div className="glass rounded-[28px] p-10 text-center space-y-3">
+              <p className="font-display text-xl font-bold">
+                {market === "saved" && saved.size === 0 ? "You haven't saved any jobs yet" : "No jobs match these filters"}
+              </p>
+              <p className="text-sm max-w-md mx-auto" style={{ color: "var(--theme-text-muted)" }}>
+                {market === "saved" && saved.size === 0
+                  ? "Use the star on any job to keep it here."
+                  : chips.length
+                  ? "Lower the minimum fit or remove a filter to see more."
+                  : "Run a scan to pull new jobs from the boards."}
+              </p>
+              <div className="flex justify-center gap-3 pt-2">
+                {chips.length > 0 && (
+                  <button onClick={resetFilters} className="glass-strong px-5 py-2.5 rounded-2xl text-sm font-semibold">
+                    Clear filters
+                  </button>
+                )}
+                <button
+                  onClick={() => (market === "saved" ? setMarket("global") : setScanOpen(true))}
+                  className="px-5 py-2.5 rounded-2xl text-sm font-semibold text-white"
+                  style={{ background: "var(--theme-primary)" }}
+                >
+                  {market === "saved" ? "Browse all jobs" : "Scan boards"}
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
       </div>
+
+      {/* Mobile filter sheet */}
+      {sheetOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex flex-col justify-end bg-black/30 backdrop-blur-sm" onClick={() => setSheetOpen(false)}>
+          <div
+            className="glass-strong rounded-t-[28px] p-5 max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-label="Filters"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <span className="font-display text-lg font-bold">Filters</span>
+              <button onClick={() => setSheetOpen(false)} className="p-2 rounded-full hover:bg-black/5" aria-label="Close filters">
+                <X size={18} />
+              </button>
+            </div>
+            {rail}
+            <button
+              onClick={() => setSheetOpen(false)}
+              className="w-full mt-6 py-3 rounded-2xl font-semibold text-white"
+              style={{ background: "var(--theme-primary)" }}
+            >
+              Show {results.length} jobs
+            </button>
+          </div>
+        </div>
+      )}
+
+      <JobPreviewDrawer
+        job={previewJob}
+        isOpen={!!previewJob}
+        onClose={() => setPreviewJob(null)}
+        onTailorClick={setTailorJob}
+        onApplyClick={openApply}
+        onToggleSave={toggleSave}
+        isSaved={previewJob ? saved.has(previewJob.url) : false}
+      />
+      <ScanModal
+        isOpen={scanOpen}
+        onClose={() => setScanOpen(false)}
+        onScanComplete={() => {
+          setScanOpen(false);
+          fetchJobs(true);
+        }}
+      />
+      <TailorModal job={tailorJob} isOpen={!!tailorJob} onClose={() => setTailorJob(null)} />
+      <ApplyModal
+        job={applyJob}
+        isOpen={!!applyJob}
+        onClose={() => setApplyJob(null)}
+        onApplicationSubmitted={(j) => sendFeedback(j, "apply")}
+      />
     </SalvoConnectionGuard>
   );
 }

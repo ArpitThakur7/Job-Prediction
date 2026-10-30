@@ -202,6 +202,18 @@ export async function finalizeTailoredJob(job, parsed) {
     throw new Error('parsed output missing resume or coverLetter field');
   }
   const profile = await loadProfile();
+
+  // Truth guard runs BEFORE anything is written, so only verified content can
+  // reach the PDF, text, JSON and cover letter that the user sends out.
+  const { loadTrustedFactBank, verifyAndSanitizeResume, verifyAndSanitizeCoverLetter, generateResumeDiff } =
+    await import('./lib/truth-guard.mjs');
+  const factBank = await loadTrustedFactBank();
+  const truthCheck = verifyAndSanitizeResume(parsed.resume, factBank);
+  const letterCheck = verifyAndSanitizeCoverLetter(parsed.coverLetter, factBank, { jobText: job.description || '' });
+  parsed.resume = truthCheck.resume;
+  parsed.coverLetter = letterCheck.text;
+  const violations = [...truthCheck.violations, ...letterCheck.violations];
+
   enforceOnePageBudget(parsed.resume);
   parsed.resume.identity = trustedIdentity(profile);
 
@@ -227,10 +239,6 @@ export async function finalizeTailoredJob(job, parsed) {
     renderCoverLetterPdf(parsed.coverLetter, parsed.resume.identity, coverPdfPath),
   ]);
 
-  const { loadTrustedFactBank, verifyAndSanitizeResume, generateResumeDiff } = await import('./lib/truth-guard.mjs');
-  const factBank = await loadTrustedFactBank();
-  const truthCheck = verifyAndSanitizeResume(parsed.resume, factBank);
-  parsed.resume = truthCheck.resume;
   const diff = generateResumeDiff(factBank.masterText, parsed.resume);
 
   const meta = {
@@ -247,16 +255,17 @@ export async function finalizeTailoredJob(job, parsed) {
     pageCount,
     keywordReport: parsed.keywordReport || { matched: [], missing: [] },
     projectsUsed: (parsed.resume.projects || []).map((p) => p.name),
+    // "verified" means the model's draft needed no removals; the written files are always the cleaned version.
     truthReport: {
-      verified: truthCheck.verified,
-      violations: truthCheck.violations,
+      verified: violations.length === 0,
+      violations,
     },
     diff,
   };
   await writeFile(metaPath, JSON.stringify(meta, null, 2));
 
-  if (truthCheck.violations.length) {
-    console.warn(`  [TruthGuard] Filtered ${truthCheck.violations.length} unverified assertions:`, truthCheck.violations);
+  if (violations.length) {
+    console.warn(`  [TruthGuard] Removed ${violations.length} unverified claims before rendering:`, violations);
   }
 
   if (pageCount > 1) {

@@ -18,7 +18,6 @@ COPY --from=builder /install /usr/local
 # Copy project files
 COPY backend/   ./backend/
 COPY ml/        ./ml/
-COPY api/       ./api/
 COPY scripts/   ./scripts/
 COPY data/      ./data/
 

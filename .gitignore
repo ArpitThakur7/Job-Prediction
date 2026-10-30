@@ -40,6 +40,12 @@ htmlcov/
 # ML models
 ml/model/*.pkl
 ml/model/*.joblib
+ml/model/*/*.pkl
+ml/model/*/*.joblib
+# MiniLM embedding disk cache (regenerable)
+ml/cache/
+# Real user feedback events (personal; JSONL fallback when MongoDB is down)
+data/feedback.jsonl
 
 # VS Code
 .vscode/
@@ -68,3 +74,11 @@ engine/config/profile.yaml
 engine/config/portfolio.yaml
 auth/sessions/
 
+
+# Personal AI-assistant tooling (kept locally, not part of the project)
+.agents/
+mcp_config.json
+.claude/
+
+# Private planning notes
+docs/IMPROVEMENT_PLAN.md

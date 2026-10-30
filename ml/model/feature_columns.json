@@ -4,8 +4,14 @@
   "experience_gap",
   "education_score",
   "location_match",
-  "category_match",
   "title_relevance",
   "semantic_similarity",
-  "skills_count_resume"
+  "skills_count_resume",
+  "is_entry_level_job",
+  "project_keyword_count",
+  "internship_mentions",
+  "certification_count",
+  "education_field_match",
+  "experience_adequacy",
+  "skill_recency_score"
 ]

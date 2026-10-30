@@ -18,6 +18,7 @@ import * as leverFiller from './lib/ats/lever.mjs';
 import * as genericFiller from './lib/ats/generic.mjs';
 import yaml from 'js-yaml';
 import 'dotenv/config';
+import { allowedOrigins, checkRequest, corsHeaders, isInside, MAX_BODY_BYTES } from './lib/request-guard.mjs';
 
 const PORT = Number(process.env.SALVO_ENGINE_PORT || process.env.DASHBOARD_PORT || 4173);
 const STORE = new XlsxStore(join(ROOT, 'data/applications.xlsx'));
@@ -27,10 +28,11 @@ const GENERATED_DIR = resolve(join(ROOT, 'data/generated'));
 const activeScans = new Map();
 let scanCounter = 0;
 
+const ALLOWED_ORIGINS = allowedOrigins();
+
+// CORS is echoed only for the origin the request guard approved (stored on res).
 function sendCors(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  for (const [k, v] of Object.entries(corsHeaders(res.salvoOrigin))) res.setHeader(k, v);
 }
 
 function sendJson(res, status, data) {
@@ -46,11 +48,24 @@ function sendJson(res, status, data) {
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
     let body = '';
-    req.on('data', (chunk) => (body += chunk));
+    let size = 0;
+    req.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > MAX_BODY_BYTES) {
+        const err = new Error('Request body too large');
+        err.status = 413;
+        reject(err);
+        req.destroy();
+        return;
+      }
+      body += chunk;
+    });
     req.on('end', () => {
       try {
         resolve(body ? JSON.parse(body) : {});
-      } catch (err) {
+      } catch {
+        const err = new Error('Request body is not valid JSON');
+        err.status = 400;
         reject(err);
       }
     });
@@ -513,7 +528,7 @@ async function handleDownload(url, res) {
   if (!filePath) return sendJson(res, 400, { error: 'Path parameter required' });
 
   const resolved = resolve(filePath);
-  if (!resolved.startsWith(GENERATED_DIR)) {
+  if (!isInside(GENERATED_DIR, resolved)) {
     return sendJson(res, 403, { error: 'Refusing to access files outside data/generated' });
   }
   if (!existsSync(resolved)) {
@@ -568,6 +583,12 @@ async function handleProviderHealth(res) {
 // ---------------------------------------------------------------------------
 
 const server = createServer(async (req, res) => {
+  const verdict = checkRequest(req.headers, ALLOWED_ORIGINS);
+  if (!verdict.ok) {
+    res.writeHead(verdict.status, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ error: verdict.reason }));
+  }
+  res.salvoOrigin = verdict.origin;
   const url = new URL(req.url, `http://${req.headers.host}`);
 
   if (req.method === 'OPTIONS') {
@@ -606,7 +627,9 @@ const server = createServer(async (req, res) => {
 
     sendJson(res, 404, { error: 'Route not found' });
   } catch (err) {
-    sendJson(res, 500, { error: err.message, stack: err.stack });
+    // Log the stack locally; never send it to the caller.
+    console.error('[Salvo Engine]', err);
+    sendJson(res, err.status || 500, { error: err.status ? err.message : 'Internal error' });
   }
 });
 

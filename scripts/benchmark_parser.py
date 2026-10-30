@@ -1,5 +1,5 @@
 """
-50-Resume Parser Accuracy Benchmark Protocol - JOB-AI Platform
+50-Resume Parser Accuracy Benchmark Protocol - Fletch
 Measures field-level Precision, Recall, and F1-Score across benchmark sample datasets.
 """
 
