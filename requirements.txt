@@ -35,7 +35,7 @@ shap>=0.48.0
 optuna>=3.6.1
 
 # ── Visualisation (plots + dashboard) ────────────────────────────────────────
-matplotlib>=3.9.2
+matplotlib>=3.10.9
 seaborn>=0.13.2
 plotly>=5.23.0
 
