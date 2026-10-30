@@ -25,7 +25,7 @@ pinecone>=6.0.0,<7.0.0
 xgboost>=2.1.1
 scikit-learn>=1.5.2
 joblib>=1.4.2
-numpy>=2.1
+numpy>=2.2.6
 pandas>=2.2.3
 
 # ── Explainability ────────────────────────────────────────────────────────────
