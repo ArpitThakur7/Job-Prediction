@@ -43,7 +43,7 @@ jobs:
           touch out/.nojekyll
 
       - name: Upload GitHub Pages Artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ./frontend/out
 
